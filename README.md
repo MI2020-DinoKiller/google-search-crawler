@@ -4,5 +4,5 @@
 
 ```commandline
 pip install -r requirements.txt
-python3 "SEARCH_TEXT" "SEARCH_PAGE"
+python3 app.py "SEARCH_TEXT" "SEARCH_PAGE"
 ```
