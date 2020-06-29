@@ -3,8 +3,6 @@ import time
 import sys
 import requests
 import json
-import urllib.request
-from distutils.filelist import findall
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 
