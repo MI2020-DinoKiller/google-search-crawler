@@ -3,7 +3,8 @@ import time
 import sys
 import requests
 import json
-from bs4 import BeautifulSoup
+import jieba
+from bs4 import BeautifulSoup,Comment
 from fake_useragent import UserAgent
 
 print("正在分析 config.json 檔案...")
@@ -35,6 +36,10 @@ def get_text(link):
     else:
         html_page = res.content
         soup = BeautifulSoup(html_page, 'html.parser')  # beautifulsoup抓取网页源代码
+
+        comments = soup.findAll(text=lambda text: isinstance(text, Comment))  # 去除网页内的注解
+        [comment.extract() for comment in comments]
+        
         text = soup.find_all(text=True)
 
         output = ''
