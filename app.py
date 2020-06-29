@@ -13,6 +13,7 @@ GSA = json.load(input_file)
 print("分析完畢 config.json")
 
 x = sys.argv[1]
+words=jieba.lcut_for_search(x) #分割搜寻字串
 y = sys.argv[2]
 y = int(y)
 y = (y - 1) * 10 + 1
@@ -39,7 +40,7 @@ def get_text(link):
 
         comments = soup.findAll(text=lambda text: isinstance(text, Comment))  # 去除网页内的注解
         [comment.extract() for comment in comments]
-        
+
         text = soup.find_all(text=True)
 
         output = ''
@@ -83,7 +84,10 @@ def get_text(link):
 
         for t in text:
             if t.parent.name not in blacklist:
-                output += '{} '.format(t)
+                for i in words:                     #关键词定位
+                    if t.find(i) != -1:
+                        output += '{} '.format(t)
+                        break
         pattern = re.compile(r'<[^>]+>', re.S)  # 去除tag键
         result = pattern.sub('', output)
         print(result)
