@@ -4,7 +4,7 @@ import sys
 import requests
 import json
 import jieba
-from bs4 import BeautifulSoup,Comment
+from bs4 import BeautifulSoup, Comment
 from fake_useragent import UserAgent
 
 print("正在分析 config.json 檔案...")
@@ -13,7 +13,7 @@ GSA = json.load(input_file)
 print("分析完畢 config.json")
 
 x = sys.argv[1]
-words=jieba.lcut_for_search(x) #分割搜寻字串
+words = jieba.lcut_for_search(x)  # 分割搜寻字串
 y = sys.argv[2]
 y = int(y)
 y = (y - 1) * 10 + 1
@@ -84,7 +84,7 @@ def get_text(link):
 
         for t in text:
             if t.parent.name not in blacklist:
-                for i in words:                     #关键词定位
+                for i in words:  # 关键词定位
                     if t.find(i) != -1:
                         output += '{} '.format(t)
                         break
@@ -99,7 +99,7 @@ urls = '{}cx={}&key={}&q="{}"&start={}'.format(GSA["google_search_api_url"],
 data = requests.get(urls).json()
 # get the result items
 search_items = data.get("items")
-if search_items == None:
+if search_items is None:
     print("无相关资料！")  # 是否有搜寻到资料
 else:
     # iterate over 10 results found
@@ -117,4 +117,3 @@ else:
         print("Description:", snippet)
         print("URL:", link, "\n")
         get_text(link)  # problem：google的网址可能进入pdf档；一些网址需要登入才可以预览内容，需要cookie；
-
