@@ -4,6 +4,7 @@ import sys
 import requests
 import json
 import jieba
+import urllib.parse
 from bs4 import BeautifulSoup, Comment
 from fake_useragent import UserAgent
 
@@ -95,7 +96,7 @@ def get_text(link):
 
 urls = '{}cx={}&key={}&q="{}"&start={}'.format(GSA["google_search_api_url"],
                                                GSA["google_search_api_cx"],
-                                               GSA["google_search_api_key"], x, y)
+                                               GSA["google_search_api_key"], urllib.parse.quote_plus(x), y)
 data = requests.get(urls).json()
 # get the result items
 search_items = data.get("items")
