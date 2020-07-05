@@ -93,7 +93,8 @@ def get_text(link):
                         save.append(t)
                         output += '{} '.format(t)
                         break
-            abandon.append(t)
+            else:
+                abandon.append(t)
         print('save:', len(save), 'abandon:', len(abandon))
         pattern = re.compile(r'<[^>]+>', re.S)  # 去除tag键
         result = pattern.sub('', output)
