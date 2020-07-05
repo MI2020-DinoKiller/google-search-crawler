@@ -83,15 +83,22 @@ def get_text(link):
             # there may be more elements you don't want, such as "style", etc.
         ]
 
+        save = []
+        abandon = []
         for t in text:
             if t.parent.name not in blacklist:
                 for i in words:  # 关键词定位
-                    if t.find(i) != -1:
+                    v = t.string
+                    if len(re.findall(i, v)) > 0:
+                        save.append(t)
                         output += '{} '.format(t)
                         break
+            abandon.append(t)
+        print('save:', len(save), 'abandon:', len(abandon))
         pattern = re.compile(r'<[^>]+>', re.S)  # 去除tag键
         result = pattern.sub('', output)
         print(result)
+        print('丢弃：',abandon)
 
 
 urls = '{}cx={}&key={}&q="{}"&start={}'.format(GSA["google_search_api_url"],
