@@ -98,7 +98,11 @@ def get_text(link):
         pattern = re.compile(r'<[^>]+>', re.S)  # 去除tag键
         result = pattern.sub('', output)
         print(result)
-        print('丢弃：',abandon)
+        a=''
+        for i in abandon:
+            if i!='\n':
+                a+= '{} '.format(i)
+        print('丢弃：',a)
 
 
 urls = '{}cx={}&key={}&q="{}"&start={}'.format(GSA["google_search_api_url"],
