@@ -42,68 +42,24 @@ def get_text(link):
         comments = soup.findAll(text=lambda text: isinstance(text, Comment))  # 去除网页内的注解
         [comment.extract() for comment in comments]
 
-        text = soup.find_all(text=True)
-
+        index = 0
+        location = []
+        result = soup.find_all('p', text=True)
+        for i in result:
+            num = 0
+            for w in words:
+                if len(re.findall(w, str(i))) > 0:
+                    num += len(re.findall(w, str(i)))
+            if num > 0:
+                location.append(index)
+            index += 1
         output = ''
-        blacklist = [
-            'a',
-            'abbr',
-            'body',
-            'button',
-            'caption',
-            'cite',
-            'footer',
-            'form',
-            'head',
-            'html',
-            'i',
-            'label',
-            'li',
-            'link',
-            'ol',
-            'nav',
-            'option',
-            'script',
-            'small',
-            'section',
-            'select',
-            'style',
-            'strong',
-            'sub',
-            'sup',
-            'svg',
-            'title',
-            'table',
-            'tbody',
-            'td',
-            'th',
-            'tr',
-            'ul'
-
-            # there may be more elements you don't want, such as "style", etc.
-        ]
-
-        save = []
-        abandon = []
-        for t in text:
-            if t.parent.name not in blacklist:
-                for i in words:  # 关键词定位
-                    v = t.string
-                    if len(re.findall(i, v)) > 0:
-                        save.append(t)
-                        output += '{} '.format(t)
-                        break
-            else:
-                abandon.append(t)
-        print('save:', len(save), 'abandon:', len(abandon))
+        if len(location) > 0:
+            for i in range(location[0], location[-1]):
+                output += '{} '.format(result[i])
         pattern = re.compile(r'<[^>]+>', re.S)  # 去除tag键
         result = pattern.sub('', output)
         print(result)
-        a=''
-        for i in abandon:
-            if i!='\n':
-                a+= '{} '.format(i)
-        print('丢弃：',a)
 
 
 urls = '{}cx={}&key={}&q="{}"&start={}'.format(GSA["google_search_api_url"],
