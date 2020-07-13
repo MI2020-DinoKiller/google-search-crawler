@@ -50,7 +50,7 @@ def get_text(link):
         abandon = []
         index = 0
         location = []
-        result = soup.find_all('p', text=True)
+        result = soup.find_all(['p', 'span'], text=True)
         for i in result:
             num = 0
             for w in words:
@@ -70,7 +70,13 @@ def get_text(link):
         pattern = re.compile(r'<[^>]+>', re.S)  # 去除tag键
         result = pattern.sub('', output)
         print(result)
-        print("\n\n\n", abandon)
+        # 结果印出
+        # 映出丢弃的部分
+        if result == '':
+            if soup is not None:
+                print(soup.find_all(['p', 'span'], text=True))
+        else:
+            print("\n\n\n", abandon)
 
 
 urls = '{}cx={}&key={}&q="{}"&start={}'.format(GSA["google_search_api_url"],
