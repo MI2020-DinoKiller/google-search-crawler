@@ -4,6 +4,7 @@ import sys
 import requests
 import json
 import jieba
+import zhconv  #简体繁体转换
 import urllib.parse
 from bs4 import BeautifulSoup, Comment
 from fake_useragent import UserAgent
@@ -14,7 +15,11 @@ GSA = json.load(input_file)
 print("分析完畢 config.json")
 
 x = sys.argv[1]
-words = jieba.lcut_for_search(x)  # 分割搜寻字串
+x=zhconv.convert(x, 'zh-tw') #简体转换繁体
+words=jieba.lcut_for_search(x)
+x=zhconv.convert(x, 'zh-hans')
+for i in jieba.lcut_for_search(x):
+    words.append(i) # 分割搜寻字串
 y = sys.argv[2]
 y = int(y)
 y = (y - 1) * 10 + 1
@@ -42,6 +47,7 @@ def get_text(link):
         comments = soup.findAll(text=lambda text: isinstance(text, Comment))  # 去除网页内的注解
         [comment.extract() for comment in comments]
 
+        abandon = []
         index = 0
         location = []
         result = soup.find_all('p', text=True)
@@ -57,9 +63,14 @@ def get_text(link):
         if len(location) > 0:
             for i in range(location[0], location[-1]):
                 output += '{} '.format(result[i])
+            for i in range(0, location[0]):
+                abandon.append(result[i])
+            for i in range(location[-1], index):
+                abandon.append(result[i])
         pattern = re.compile(r'<[^>]+>', re.S)  # 去除tag键
         result = pattern.sub('', output)
         print(result)
+        print("\n\n\n", abandon)
 
 
 urls = '{}cx={}&key={}&q="{}"&start={}'.format(GSA["google_search_api_url"],
