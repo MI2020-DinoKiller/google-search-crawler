@@ -20,6 +20,7 @@ words=jieba.lcut_for_search(x)
 x=zhconv.convert(x, 'zh-hans')
 for i in jieba.lcut_for_search(x):
     words.append(i) # 分割搜寻字串
+print(words)
 y = sys.argv[2]
 y = int(y)
 y = (y - 1) * 10 + 1
@@ -27,8 +28,8 @@ y = (y - 1) * 10 + 1
 
 # 取得html的原始码
 def get_text(link):
-    time.sleep(0.5)  # 解决'Connection aborted.'问题，是否是因为访问频率被阻挡
     headers = {
+        'Host': 'ptlogin2.qq.com',
         "User-Agent": UserAgent(verify_ssl=False).random,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
         'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
@@ -47,36 +48,35 @@ def get_text(link):
         comments = soup.findAll(text=lambda text: isinstance(text, Comment))  # 去除网页内的注解
         [comment.extract() for comment in comments]
 
+        lecture = []
+        save = []
         abandon = []
-        index = 0
-        location = []
-        result = soup.find_all(['p', 'span'], text=True)
-        for i in result:
-            num = 0
-            for w in words:
-                if len(re.findall(w, str(i))) > 0:
-                    num += len(re.findall(w, str(i)))
-            if num > 0:
-                location.append(index)
-            index += 1
-        output = ''
-        if len(location) > 0:
-            for i in range(location[0], location[-1]):
-                output += '{} '.format(result[i])
-            for i in range(0, location[0]):
-                abandon.append(result[i])
-            for i in range(location[-1], index):
-                abandon.append(result[i])
-        pattern = re.compile(r'<[^>]+>', re.S)  # 去除tag键
-        result = pattern.sub('', output)
-        print(result)
-        # 结果印出
-        # 映出丢弃的部分
-        if result == '':
-            if soup is not None:
-                print(soup.find_all(['p', 'span'], text=True))
+        whitelist = ['div', 'p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+        text = soup.find_all(text=True)
+        for i in text:
+            if i.parent.name in whitelist:
+                num = 0
+                lecture.append(i)
+                if len(lecture) % 3 == 0:
+                    for l in lecture:
+                        for w in words:
+                            num += len(re.findall(w, str(l)))
+                        if num > 0:
+                            save.append(lecture)
+                            break
+                    lecture = []
+
+        if len(save) > 0:
+            for i in save:
+                for j in i:
+                    if j != '\n':
+                        if len(j) > 4:
+                            print(j)
         else:
-            print("\n\n\n", abandon)
+            print("abandon\n\n")
+            for i in text:
+                if i != '\n':
+                    print(i)
 
 
 urls = '{}cx={}&key={}&q="{}"&start={}'.format(GSA["google_search_api_url"],
