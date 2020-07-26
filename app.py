@@ -4,44 +4,43 @@ import sys
 import requests
 import json
 import jieba
-import zhconv  #简体繁体转换
+import zhconv  # 简体繁体转换
 import urllib.parse
 from bs4 import BeautifulSoup, Comment
 from fake_useragent import UserAgent
-import pymysql #链接sql资料库
+import pymysql  # 链接sql资料库
 
 print("正在分析 config.json 檔案...")
 input_file = open('config.json')
-GSA = json.load(input_file)
+CONFIG = json.load(input_file)
 print("分析完畢 config.json")
 
-
-#链接mysql
+# 链接mysql
 print('连接到mysql服务器...')
 db = pymysql.connect(
-        host="127.0.0.1",
-        user="1234",
-        passwd="",
-        db="search",
-        charset='utf8',
-        cursorclass=pymysql.cursors.DictCursor)
+    host=CONFIG["Database"]["host"],
+    user=CONFIG["Database"]["user"],
+    passwd=CONFIG["Database"]["passwd"],
+    db=CONFIG["Database"]["dbname"],
+    charset=CONFIG["Database"]["charset"],
+    cursorclass=pymysql.cursors.DictCursor)
 print('连接上了!')
 cursor = db.cursor()
 
 
-
 def insert_into_search(searchstring):
-    insert_color = ("INSERT INTO search(SearchString)" "VALUES(%s)")
-    dese = (searchstring)
+    insert_color = "INSERT INTO search(SearchString) VALUES(%s)"
+    dese = searchstring
     cursor.execute(insert_color, dese)
     db.commit()
 
+
 x = sys.argv[1]
-x=zhconv.convert(x, 'zh-tw') #简体转换繁体
-words=jieba.lcut_for_search(x)
-x=zhconv.convert(x, 'zh-hans')
+x = zhconv.convert(x, 'zh-tw')  # 简体转换繁体
+words = jieba.lcut_for_search(x)
+x = zhconv.convert(x, 'zh-hans')
 for i in jieba.lcut_for_search(x):
-    words.append(i) # 分割搜寻字串
+    words.append(i)  # 分割搜寻字串
 print(words)
 y = sys.argv[2]
 y = int(y)
@@ -101,9 +100,9 @@ def get_text(link):
                     print(i)
 
 
-urls = '{}cx={}&key={}&q="{}"&start={}'.format(GSA["google_search_api_url"],
-                                               GSA["google_search_api_cx"],
-                                               GSA["google_search_api_key"], urllib.parse.quote_plus(x), y)
+urls = '{}cx={}&key={}&q="{}"&start={}'.format(CONFIG["google_search_api_url"],
+                                               CONFIG["google_search_api_cx"],
+                                               CONFIG["google_search_api_key"], urllib.parse.quote_plus(x), y)
 data = requests.get(urls).json()
 # get the result items
 search_items = data.get("items")
