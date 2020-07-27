@@ -31,10 +31,20 @@ cursor = db.cursor()
 
 
 def insert_into_search(searchstring):
-    insert_color = ("INSERT INTO search(SearchString)" "VALUES(%s)")
-    dese = (searchstring)
-    cursor.execute(insert_color, dese)
-    db.commit()
+    sql = "select SearchId from search where SearchString ='"+searchstring+"'"
+    #需要先执行sql语句
+    if cursor.execute(sql):
+        #得到返回值jilu,jilu是一个元组
+        jilu = cursor.fetchone()
+        #通过下标取出值即可
+        print('已有相同搜寻,对应的id是：', jilu)
+    else:
+        print('没有对应的搜寻，新增中。。。。')
+        insert_color = ("INSERT INTO search(SearchString)" "VALUES(%s)")
+        dese = (searchstring)
+        cursor.execute(insert_color, dese)
+        db.commit()
+        print("新增完成！")
 
 x = sys.argv[1]
 x=zhconv.convert(x, 'zh-tw') #简体转换繁体
