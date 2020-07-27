@@ -29,14 +29,14 @@ cursor = db.cursor()
 
 
 def insert_into_search(searchstring):
-<<<<<<< HEAD
+
     sql = "select SearchId from search where SearchString ='"+searchstring+"'"
     #需要先执行sql语句
     if cursor.execute(sql):
         #得到返回值jilu,jilu是一个元组
         jilu = cursor.fetchone()
         #通过下标取出值即可
-        print('已有相同搜寻,对应的id是：', jilu)
+        print('已有相同搜寻,对应的id是：', jilu['SearchId'])
     else:
         print('没有对应的搜寻，新增中。。。。')
         insert_color = ("INSERT INTO search(SearchString)" "VALUES(%s)")
@@ -44,13 +44,24 @@ def insert_into_search(searchstring):
         cursor.execute(insert_color, dese)
         db.commit()
         print("新增完成！")
-=======
-    insert_color = "INSERT INTO search(SearchString) VALUES(%s)"
-    dese = searchstring
+
+
+def find_searchId(searchstring):
+    sql = "select SearchId from search where SearchString ='" + searchstring + "'"
+    # 需要先执行sql语句
+    if cursor.execute(sql):
+        # 得到返回值jilu,jilu是一个元组
+        jilu = cursor.fetchone()
+        # 通过下标取出值即可
+        return jilu['SearchId']
+
+
+def insert_into_searchresult(Link, Title, Content, searchstring):
+    SearchId = find_searchId(searchstring)
+    insert_color = ("INSERT INTO searchresult(Link,Title,Content,SearchId)" "VALUES(%s,%s,%s,%s)")
+    dese = (Link, Title, Content, SearchId)
     cursor.execute(insert_color, dese)
     db.commit()
->>>>>>> 2ee0960ce850d962919bb82dd6ed06c83108a2f3
-
 
 x = sys.argv[1]
 x = zhconv.convert(x, 'zh-tw')  # 简体转换繁体
@@ -83,6 +94,9 @@ def get_text(link):
         html_page = res.content
         soup = BeautifulSoup(html_page, 'html.parser')  # beautifulsoup抓取网页源代码
 
+        insert_into_searchresult(link, title, soup, x)  # 录入search result资料表
+
+        
         comments = soup.findAll(text=lambda text: isinstance(text, Comment))  # 去除网页内的注解
         [comment.extract() for comment in comments]
 
