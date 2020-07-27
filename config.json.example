@@ -1,4 +1,11 @@
 {
+  "Database": {
+    "charset": "utf8",
+    "dbname": "DATABASE_DBNAME",
+    "host": "DATABASE_HOST",
+    "passwd": "DATABASE_PASSWORD",
+    "user": "DATABASE_USERNAME"
+  },
   "google_search_api_url": "https://www.googleapis.com/customsearch/v1?",
   "google_search_api_cx": "YOUR_CUSTOM_SEARCH_API_CX",
   "google_search_api_key": "YOUR_CUSTOM_SEARCH_API_KEY"
