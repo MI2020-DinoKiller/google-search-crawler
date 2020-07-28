@@ -53,13 +53,14 @@ def find_searchId(searchstring):
         # 得到返回值jilu,jilu是一个元组
         jilu = cursor.fetchone()
         # 通过下标取出值即可
-        return jilu['SearchId']
+        Id = jilu['SearchId']
+        return (Id)
 
 
 def insert_into_searchresult(Link, Title, Content, searchstring):
-    SearchId = find_searchId(searchstring)
+    Id = find_searchId(searchstring)
     insert_color = ("INSERT INTO searchresult(Link,Title,Content,SearchId)" "VALUES(%s,%s,%s,%s)")
-    dese = (Link, Title, Content, SearchId)
+    dese = (Link, Title, Content, Id)
     cursor.execute(insert_color, dese)
     db.commit()
 
@@ -94,41 +95,66 @@ def get_text(link):
         html_page = res.content
         soup = BeautifulSoup(html_page, 'html.parser')  # beautifulsoup抓取网页源代码
 
-        insert_into_searchresult(link, title, soup, x)  # 录入search result资料表
 
         
         comments = soup.findAll(text=lambda text: isinstance(text, Comment))  # 去除网页内的注解
         [comment.extract() for comment in comments]
 
-        lecture = []
         save = []
-        abandon = []
-        whitelist = ['div', 'p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+        output = ''
         text = soup.find_all(text=True)
-        for i in text:
-            if i.parent.name in whitelist:
-                num = 0
-                lecture.append(i)
-                if len(lecture) % 3 == 0:
-                    for l in lecture:
-                        for w in words:
-                            num += len(re.findall(w, str(l)))
-                        if num > 0:
-                            save.append(lecture)
-                            break
-                    lecture = []
+        blacklist = [
+            'a',
+            'abbr',
+            'body',
+            'button',
+            'caption',
+            'cite',
+            'footer',
+            'form',
+            'head',
+            'html',
+            'i',
+            'label',
+            'li',
+            'link',
+            'ol',
+            'nav',
+            'option',
+            'script',
+            'small',
+            'section',
+            'select',
+            'style',
+            'strong',
+            'sub',
+            'sup',
+            'svg',
+            'title',
+            'table',
+            'tbody',
+            'th',
+            'ul'
 
-        if len(save) > 0:
-            for i in save:
-                for j in i:
-                    if j != '\n':
-                        if len(j) > 4:
-                            print(j)
-        else:
-            print("abandon\n\n")
-            for i in text:
-                if i != '\n':
-                    print(i)
+            # there may be more elements you don't want, such as "style", etc.
+        ]
+
+        for t in text:
+            if t.parent.name not in blacklist:
+                if len(t) >= 4:
+                    output += '{} '.format(t)
+        print("全部的text：\n", output)
+        insert_into_searchresult(link, title, output, x)  # 录入search result资料表
+
+        save = re.split(r'[，。！？]', output)
+        print("全文分割：", save, "\n")
+        print("关键句筛选：")
+        for i in save:
+            num = 0
+            for w in words:
+                num += len(re.findall(w, i))
+            if num > 0:
+                print(i)
 
 
 urls = '{}cx={}&key={}&q="{}"&start={}'.format(CONFIG["google_search_api_url"],
