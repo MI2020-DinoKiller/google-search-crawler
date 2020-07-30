@@ -146,14 +146,17 @@ def get_text(link):
         print("全部的text：\n", output)
         insert_into_searchresult(link, title, output, x)  # 录入search result资料表
 
-        save = re.split(r'[，。！？]', output)
+        save = re.split(r'[，。！?\s ]', output)
         print("全文分割：", save, "\n")
+
+        data_key = []
         print("关键句筛选：")
         for i in save:
             num = 0
             for w in words:
                 num += len(re.findall(w, i))
             if num > 0:
+                data_key.append(i)
                 print(i)
 
 
