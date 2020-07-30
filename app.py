@@ -146,7 +146,7 @@ def get_text(link):
         print("全部的text：\n", output)
         insert_into_searchresult(link, title, output, x)  # 录入search result资料表
 
-        save = re.split(r'[，。！?\s ]', output)
+        save = re.split(r'[。！?\s]', output)
         print("全文分割：", save, "\n")
 
         index = []
@@ -159,7 +159,7 @@ def get_text(link):
             if num > 0:
                 data_key.append(i)
                 print(i)
-        print("关键段落：\n")
+        print("\n关键段落:")
         if len(index) > 0:
             for i in range(index[0], index[-1]):
                 print(save[i])
