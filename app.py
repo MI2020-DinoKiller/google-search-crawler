@@ -57,12 +57,27 @@ def find_searchId(searchstring):
         return (Id)
 
 
+def find_white_id(link):
+    sql = "select * from whitelist"
+    # 需要先执行sql语句
+    Id = ""
+    row = cursor.fetchone()
+    while row:
+        print(row['WhiteListLink'])
+        if len(re.findall(row['WhiteListLink'], link)):
+            Id = row['WhiteListId']
+        row = cursor.fetchone()
+    return (Id)
+
+
 def insert_into_searchresult(Link, Title, Content, searchstring):
     Id = find_searchId(searchstring)
-    insert_color = ("INSERT INTO searchresult(Link,Title,Content,SearchId)" "VALUES(%s,%s,%s,%s)")
-    dese = (Link, Title, Content, Id)
+    whitelistid = find_white_id(Link)
+    insert_color = ("INSERT INTO searchresult(Link,Title,Content,SearchId,WhiteListId)" "VALUES(%s,%s,%s,%s,%s)")
+    dese = (Link, Title, Content, Id, whitelistid)
     cursor.execute(insert_color, dese)
     db.commit()
+
 
 x = sys.argv[1]
 x = zhconv.convert(x, 'zh-tw')  # 简体转换繁体
