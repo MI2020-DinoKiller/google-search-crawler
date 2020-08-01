@@ -167,13 +167,18 @@ def get_text(link):
         index = []
         data_key = []
         print("关键句筛选：")
-        for i in save:
+        for i in range(len(save)):
             num = 0
             for w in words:
-                num += len(re.findall(w, i))
+                num += len(re.findall(w, save[i]))
             if num > 0:
-                data_key.append(i)
-                print(i)
+                index.append(i)
+                data_key.append(save[i])
+                print(save[i])
+        print("\n关键句位置：", index, "\n")
+
+        if len(index) != 0:
+            print("第一个关键句位置：", index[0], "最后一个关键字位置：", index[-1], "\n")
         print("\n关键段落:")
         if len(index) > 0:
             for i in range(index[0], index[-1]):
