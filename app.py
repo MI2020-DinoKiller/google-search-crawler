@@ -70,11 +70,11 @@ def find_white_id(link):
     return (Id)
 
 
-def insert_into_searchresult(Link, Title, Content, searchstring):
-    Id = find_searchId(searchstring)
-    whitelistid = find_white_id(Link)
-    insert_color = ("INSERT INTO searchresult(Link,Title,Content,SearchId,WhiteListId)" "VALUES(%s,%s,%s,%s,%s)")
-    dese = (Link, Title, Content, Id, whitelistid)
+def insert_into_searchresult(Link,Title,Content,searchstring):
+    Id=find_searchId(searchstring)
+    #whitelistid=find_white_id(Link)
+    insert_color = ("INSERT INTO searchresult(Link,Title,Content,SearchId)" "VALUES(%s,%s,%s,%s)")
+    dese = (Link,Title,Content,Id)
     cursor.execute(insert_color, dese)
     db.commit()
 
@@ -159,7 +159,7 @@ def get_text(link):
                 if len(t) > 4:
                     output += '{} '.format(t)
         print("全部的text：\n", output)
-        insert_into_searchresult(link, title, output, x)  # 录入search result资料表
+        #insert_into_searchresult(link, title, output, x)  # 录入search result资料表
 
         save = re.split(r'[。！?\s]', output)
         print("全文分割：", save, "\n")
@@ -173,8 +173,8 @@ def get_text(link):
                 num += len(re.findall(w, save[i]))
             if num > 0:
                 index.append(i)
-                data_key.append(save[i])
-                print(save[i])
+                data_key.append(save[i],"\n")
+                print(save[i],"\n")
         print("\n关键句位置：", index, "\n")
 
         if len(index) != 0:
@@ -184,28 +184,36 @@ def get_text(link):
             for i in range(index[0], index[-1]):
                 print(save[i])
 
+        if len(data_key)>0:
+                    insert_into_searchresult(link,title,output,x)    #录入search result资料表
+                    print("录入资料库\n")
 
-urls = '{}cx={}&key={}&q="{}"&start={}'.format(CONFIG["google_search_api_url"],
-                                               CONFIG["google_search_api_cx"],
-                                               CONFIG["google_search_api_key"], urllib.parse.quote_plus(x), y)
-data = requests.get(urls).json()
-# get the result items
-search_items = data.get("items")
-if search_items is None:
-    print("无相关资料！")  # 是否有搜寻到资料
-else:
-    # iterate over 10 results found
-    for i, search_item in enumerate(search_items, start=y):
-        # get the page title
-        title = search_item.get("title")
-        # page snippet
-        snippet = search_item.get("snippet")
-        # alternatively, you can get the HTML snippet (bolded keywords)
-        html_snippet = search_item.get("htmlSnippet")
-        # extract the page url
-        link = search_item.get("link")
-        # print the results
-        print("=" * 10, f"Result #{i}", "=" * 10)
-        print("Description:", snippet)
-        print("URL:", link, "\n")
-        get_text(link)  # problem：google的网址可能进入pdf档；一些网址需要登入才可以预览内容，需要cookie；
+
+
+def google_connected(x,y,words):
+    urls = '{}cx={}&key={}&q="{}"&start={}'.format(CONFIG["google_search_api_url"],
+                                                   CONFIG["google_search_api_cx"],
+                                                   CONFIG["google_search_api_key"], urllib.parse.quote_plus(x), y)
+    data = requests.get(urls).json()
+    # get the result items
+    search_items = data.get("items")
+    if search_items is None:
+        print("无相关资料！")  # 是否有搜寻到资料
+    else:
+        # iterate over 10 results found
+        for i, search_item in enumerate(search_items, start=y):
+            # get the page title
+            title = search_item.get("title")
+            # page snippet
+            snippet = search_item.get("snippet")
+            # alternatively, you can get the HTML snippet (bolded keywords)
+            html_snippet = search_item.get("htmlSnippet")
+            # extract the page url
+            link = search_item.get("link")
+            # print the results
+            print("=" * 10, f"Result #{i}", "=" * 10)
+            print("Description:", snippet)
+            print("URL:", link, "\n")
+            get_text(link)  # problem：google的网址可能进入pdf档；一些网址需要登入才可以预览内容，需要cookie；
+for i in range(y,y+2):
+    google_connected(x,i,words)
