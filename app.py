@@ -215,5 +215,8 @@ def google_connected(x,y,words):
             print("Description:", snippet)
             print("URL:", link, "\n")
             get_text(link)  # problem：google的网址可能进入pdf档；一些网址需要登入才可以预览内容，需要cookie；
+t1=time.time()
 for i in range(y,y+2):
     google_connected(x,i,words)
+t2=time.time()
+print('总共耗时：%s' % (t2 - t1))
