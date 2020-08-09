@@ -173,7 +173,7 @@ def get_text(link,title):
                 num += len(re.findall(w, save[i]))
             if num > 0:
                 index.append(i)
-                data_key.append(save[i],"\n")
+                data_key.append(save[i])
                 print(save[i],"\n")
         print("\n关键句位置：", index, "\n")
 
