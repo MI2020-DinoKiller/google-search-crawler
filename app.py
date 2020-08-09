@@ -92,7 +92,7 @@ y = (y - 1) * 10 + 1
 
 
 # 取得html的原始码
-def get_text(link):
+def get_text(link,title):
     headers = {
         'Host': 'ptlogin2.qq.com',
         "User-Agent": UserAgent(verify_ssl=False).random,
@@ -185,8 +185,8 @@ def get_text(link):
                 print(save[i])
 
         if len(data_key)>0:
-                    insert_into_searchresult(link,title,output,x)    #录入search result资料表
-                    print("录入资料库\n")
+            insert_into_searchresult(link,title,output,x)    #录入search result资料表
+            print("录入资料库\n")
 
 
 
@@ -214,7 +214,7 @@ def google_connected(x,y,words):
             print("=" * 10, f"Result #{i}", "=" * 10)
             print("Description:", snippet)
             print("URL:", link, "\n")
-            get_text(link)  # problem：google的网址可能进入pdf档；一些网址需要登入才可以预览内容，需要cookie；
+            get_text(link,title)  # problem：google的网址可能进入pdf档；一些网址需要登入才可以预览内容，需要cookie；
 t1=time.time()
 for i in range(y,y+2):
     google_connected(x,i,words)
