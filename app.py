@@ -9,6 +9,7 @@ import urllib.parse
 from bs4 import BeautifulSoup, Comment
 from fake_useragent import UserAgent
 import pymysql  # 链接sql资料库
+from jieba.analyse import *
 
 print("正在分析 config.json 檔案...")
 input_file = open('config.json')
@@ -89,6 +90,68 @@ print(words)
 y = sys.argv[2]
 y = int(y)
 y = (y - 1) * 10 + 1
+z=input("取多少字串：")
+z=int(z)
+
+
+def get_key_words(x):
+    tags2 = jieba.analyse.extract_tags(x, topK=3, withWeight=False)
+    return tags2
+
+
+def cut_all(output, x):
+    print("\n关键句直接切：\n")
+    cuts = []
+    for i in range(1, 5):
+        for j in range(len(x) - i + 1):
+            x = x.encode('utf-8').decode("utf-8")
+            w = x[j:j + i]
+            cuts.append(w)
+    print("\n", cuts)
+    c = []  # 储存关键词位置
+    for i in cuts:
+        start = 0
+        while (output.find(i, start) != -1):
+            c.append(output.find(i, start))
+            start = output.find(i, start) + 1
+    c = list(set(c))
+    c.sort()
+    print("\n", c, "\n")
+    is_choiced = 0
+    for j in range(len(c) - 1):
+        if c[j + 1] - c[j] <= z:
+            is_choiced = 1
+            print(output[c[j]:c[j] + z])
+        elif (is_choiced == 0):
+            print(output[c[j] - int(z / 2):c[j] + int(z / 2)])
+        else:
+            is_choiced = 0
+
+
+def jieba_cut(output, key_words):
+    cut_result = jieba.lcut(output)
+    cut_result.remove(' ')
+    words_number = []
+    index = []
+    print("\n全模式\n：" + "|".join(cut_result))
+    for w in key_words:
+        n = 0
+        for i in range(len(cut_result)):
+            if cut_result[i] == w:
+                n += 1
+                index.append(i)
+        words_number.append(n)
+    print("\n", words, words_number)
+
+    for i in range(len(index) - 1):
+        juzi = ""
+        if (index[i + 1] - index[i]) <= z:
+            for j in range(index[i], index[i] + z):
+                juzi += '{} '.format(cut_result[j])
+        else:
+            for j in range(index[i] - int(z / 2), index[i] + int(z / 2)):
+                juzi += '{} '.format(cut_result[j])
+        print("结巴切词：", juzi)
 
 
 # 取得html的原始码
@@ -160,6 +223,10 @@ def get_text(link,title):
                     output += '{} '.format(t)
         print("全部的text：\n", output)
         #insert_into_searchresult(link, title, output, x)  # 录入search result资料表
+
+        key_words = get_key_words(x)
+        jieba_cut(output, key_words)
+        cut_all(output, x)
 
         save = re.split(r'[。！?\s]', output)
         print("全文分割：", save, "\n")
