@@ -30,13 +30,12 @@ cursor = db.cursor()
 
 
 def insert_into_search(searchstring):
-
-    sql = "select SearchId from search where SearchString ='"+searchstring+"'"
-    #需要先执行sql语句
+    sql = "select SearchId from search where SearchString ='" + searchstring + "'"
+    # 需要先执行sql语句
     if cursor.execute(sql):
-        #得到返回值jilu,jilu是一个元组
+        # 得到返回值jilu,jilu是一个元组
         jilu = cursor.fetchone()
-        #通过下标取出值即可
+        # 通过下标取出值即可
         print('已有相同搜寻,对应的id是：', jilu['SearchId'])
     else:
         print('没有对应的搜寻，新增中。。。。')
@@ -71,11 +70,11 @@ def find_white_id(link):
     return (Id)
 
 
-def insert_into_searchresult(Link,Title,Content,searchstring):
-    Id=find_searchId(searchstring)
-    #whitelistid=find_white_id(Link)
+def insert_into_searchresult(Link, Title, Content, searchstring):
+    Id = find_searchId(searchstring)
+    # whitelistid=find_white_id(Link)
     insert_color = ("INSERT INTO searchresult(Link,Title,Content,SearchId)" "VALUES(%s,%s,%s,%s)")
-    dese = (Link,Title,Content,Id)
+    dese = (Link, Title, Content, Id)
     cursor.execute(insert_color, dese)
     db.commit()
 
@@ -90,13 +89,61 @@ print(words)
 y = sys.argv[2]
 y = int(y)
 y = (y - 1) * 10 + 1
-z=input("取多少字串：")
-z=int(z)
+z = input("取多少字串：")
+z = int(z)
 
 
-def get_key_words(x):
-    tags2 = jieba.analyse.extract_tags(x, topK=3, withWeight=False)
-    return tags2
+# 使用Google的搜寻结果数量来当idf
+def find_idf(string):
+    urls = '{}cx={}&key={}&q="{}"'.format(CONFIG["google_search_api_url"],
+                                          CONFIG["google_search_api_cx"],
+                                          CONFIG["google_search_api_key"], urllib.parse.quote_plus(string))
+    data = requests.get(urls).json()
+    result = data.get("searchInformation")
+    result_number = result.get("totalResults")
+    return result_number
+
+
+def idf_detected(searchstring):
+    sql = "select idfnumber from idf where idfstring ='" + searchstring + "'"
+    # 需要先执行sql语句
+    if cursor.execute(sql):
+        # 得到返回值jilu,jilu是一个元组
+        jilu = cursor.fetchone()
+        # 通过下标取出值即可
+        return jilu['idfnumber']
+        print('已有相同搜寻,对应的idf分值是：', jilu['idfnumber'])
+    else:
+        print('没有对应的搜寻，新增中。。。。')
+        number = find_idf(searchstring)
+        insert_color = ("INSERT INTO idf(idfstring,idfnumber)" "VALUES(%s,%s)")
+        dese = (searchstring, number)
+        cursor.execute(insert_color, dese)
+        db.commit()
+        return number
+        print("新增完成！")
+
+
+def get_key_words(c):
+    if len(c) != 0:
+        num = []
+        key_words = []
+        for i in c:
+            n = idf_detected(i)
+            num.append(n)
+        # 使用了气泡sort，可以改进
+        for i in range(len(num)):
+            for j in range(len(num) - 1):
+                if num[j + 1] < num[j]:
+                    b = num[j + 1]
+                    num[j + 1] = num[j]
+                    num[j] = b
+                    b = c[j + 1]
+                    c[j + 1] = c[j]
+                    c[j] = b
+        # 选idf最小的三个词
+        print(c[:3])
+    return c[:3]
 
 
 def cut_all(output, x):
@@ -108,6 +155,8 @@ def cut_all(output, x):
             w = x[j:j + i]
             cuts.append(w)
     print("\n", cuts)
+    get_key_words(cuts)
+
     c = []  # 储存关键词位置
     for i in cuts:
         start = 0
@@ -117,45 +166,69 @@ def cut_all(output, x):
     c = list(set(c))
     c.sort()
     print("\n", c, "\n")
-    is_choiced = 0
-    for j in range(len(c) - 1):
-        if c[j + 1] - c[j] <= z:
-            is_choiced = 1
-            print(output[c[j]:c[j] + z])
-        elif (is_choiced == 0):
-            print(output[c[j] - int(z / 2):c[j] + int(z / 2)])
-        else:
-            is_choiced = 0
+    if len(c) != 0:
+        start = c[0]  # 初始位置
+        end = 0
+        for j in range(1, len(c)):
+            if c[j] - start <= z:
+                end = c[j]
+            else:
+                while output[start] != '。' and output[start] != '!' and output[start] != '?' and output[
+                    start] != ' ' and output[start] != '？' and output[start] != '！':
+                    start -= 1
+                while output[end] != '。' and output[end] != '!' and output[end] != '?' and output[end] != ' ' and \
+                        output[end] != '？' and output[end] != '！':
+                    end += 1
+                print("(", output[start + 1:end], ")")
+                start = c[j]
 
 
-def jieba_cut(output, key_words):
-    cut_result = jieba.lcut(output)
-    cut_result.remove(' ')
-    words_number = []
+def get_key_sentence(save, x, link, title, output):
+    print("\n搜寻句直接切：")
+    cuts = []
+    for i in range(1, 5):
+        for j in range(len(x) - i + 1):
+            x = x.encode('utf-8').decode("utf-8")
+            w = x[j:j + i]
+            cuts.append(w)
+    print("\n", cuts)
     index = []
-    print("\n全模式\n：" + "|".join(cut_result))
-    for w in key_words:
-        n = 0
-        for i in range(len(cut_result)):
-            if cut_result[i] == w:
-                n += 1
-                index.append(i)
-        words_number.append(n)
-    print("\n", words, words_number)
+    data_key = []  # 关键句
+    print("关键句筛选：")
+    for i in range(len(save)):
+        num = 0
+        for w in cuts:
+            num += len(re.findall(w, save[i]))
+        if num > 0:
+            index.append(i)
+            data_key.append(save[i])
+            print(save[i], "\n")
 
-    for i in range(len(index) - 1):
-        juzi = ""
-        if (index[i + 1] - index[i]) <= z:
-            for j in range(index[i], index[i] + z):
-                juzi += '{} '.format(cut_result[j])
-        else:
-            for j in range(index[i] - int(z / 2), index[i] + int(z / 2)):
-                juzi += '{} '.format(cut_result[j])
-        print("结巴切词：", juzi)
+    print("\n关键段落：")
+    key = []
+    if len(index) > 0:
+        start = index[0]  # 初始位置
+        end = 0
+        for i in range(1, len(index)):
+            if index[i] - start <= 3:
+                end = index[i]
+            else:
+                for j in range(start - 1, end + 1):
+                    if save[j] not in key:
+                        key.append(save[j])
+                start = index[i]
+
+        for k in key:
+            print(k, "\n")
+
+    if len(data_key) > 0:
+        insert_into_searchresult(link, title, output, x)  # 录入search result资料表
+        print("录入资料库\n")
+
+    # 取得html的原始码
 
 
-# 取得html的原始码
-def get_text(link,title):
+def get_text(link, title):
     headers = {
         'Host': 'ptlogin2.qq.com',
         "User-Agent": UserAgent(verify_ssl=False).random,
@@ -173,8 +246,6 @@ def get_text(link,title):
         html_page = res.content
         soup = BeautifulSoup(html_page, 'html.parser')  # beautifulsoup抓取网页源代码
 
-
-        
         comments = soup.findAll(text=lambda text: isinstance(text, Comment))  # 去除网页内的注解
         [comment.extract() for comment in comments]
 
@@ -222,42 +293,18 @@ def get_text(link,title):
                 if len(t) > 4:
                     output += '{} '.format(t)
         print("全部的text：\n", output)
-        #insert_into_searchresult(link, title, output, x)  # 录入search result资料表
+        # insert_into_searchresult(link, title, output, x)  # 录入search result资料表
 
         key_words = get_key_words(x)
-        jieba_cut(output, key_words)
         cut_all(output, x)
 
         save = re.split(r'[。！?\s]', output)
         print("全文分割：", save, "\n")
 
-        index = []
-        data_key = []
-        print("关键句筛选：")
-        for i in range(len(save)):
-            num = 0
-            for w in words:
-                num += len(re.findall(w, save[i]))
-            if num > 0:
-                index.append(i)
-                data_key.append(save[i])
-                print(save[i],"\n")
-        print("\n关键句位置：", index, "\n")
-
-        if len(index) != 0:
-            print("第一个关键句位置：", index[0], "最后一个关键字位置：", index[-1], "\n")
-        print("\n关键段落:")
-        if len(index) > 0:
-            for i in range(index[0], index[-1]):
-                print(save[i])
-
-        if len(data_key)>0:
-            insert_into_searchresult(link,title,output,x)    #录入search result资料表
-            print("录入资料库\n")
+        get_key_sentence(save, x, link, title, output)
 
 
-
-def google_connected(x,y,words):
+def google_connected(x, y, words):
     urls = '{}cx={}&key={}&q="{}"&start={}'.format(CONFIG["google_search_api_url"],
                                                    CONFIG["google_search_api_cx"],
                                                    CONFIG["google_search_api_key"], urllib.parse.quote_plus(x), y)
@@ -281,9 +328,11 @@ def google_connected(x,y,words):
             print("=" * 10, f"Result #{i}", "=" * 10)
             print("Description:", snippet)
             print("URL:", link, "\n")
-            get_text(link,title)  # problem：google的网址可能进入pdf档；一些网址需要登入才可以预览内容，需要cookie；
-t1=time.time()
+            get_text(link, title)  # problem：google的网址可能进入pdf档；一些网址需要登入才可以预览内容，需要cookie；
+
+
+t1 = time.time()
 for i in range(3):
-    google_connected(x,i,words)
-t2=time.time()
+    google_connected(x, i, words)
+t2 = time.time()
 print('总共耗时：%s' % (t2 - t1))
