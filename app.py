@@ -30,13 +30,12 @@ cursor = db.cursor()
 
 
 def insert_into_search(searchstring):
-
-    sql = "select SearchId from search where SearchString ='"+searchstring+"'"
-    #需要先执行sql语句
+    sql = "select SearchId from search where SearchString ='" + searchstring + "'"
+    # 需要先执行sql语句
     if cursor.execute(sql):
-        #得到返回值jilu,jilu是一个元组
+        # 得到返回值jilu,jilu是一个元组
         jilu = cursor.fetchone()
-        #通过下标取出值即可
+        # 通过下标取出值即可
         print('已有相同搜寻,对应的id是：', jilu['SearchId'])
     else:
         print('没有对应的搜寻，新增中。。。。')
@@ -71,11 +70,11 @@ def find_white_id(link):
     return (Id)
 
 
-def insert_into_searchresult(Link,Title,Content,searchstring):
-    Id=find_searchId(searchstring)
-    #whitelistid=find_white_id(Link)
+def insert_into_searchresult(Link, Title, Content, searchstring):
+    Id = find_searchId(searchstring)
+    # whitelistid=find_white_id(Link)
     insert_color = ("INSERT INTO searchresult(Link,Title,Content,SearchId)" "VALUES(%s,%s,%s,%s)")
-    dese = (Link,Title,Content,Id)
+    dese = (Link, Title, Content, Id)
     cursor.execute(insert_color, dese)
     db.commit()
 
@@ -90,14 +89,15 @@ print(words)
 y = sys.argv[2]
 y = int(y)
 y = (y - 1) * 10 + 1
-z=input("取多少字串：")
-z=int(z)
+z = input("取多少字串：")
+z = int(z)
 
 
 # 使用Google的搜寻结果数量来当idf
 def find_idf(string):
-    urls = 'https://www.googleapis.com/customsearch/v1?cx=000557634848164668923:xkoqgm5rq2c&key=AIzaSyCokJpeiWD6cG0-8X6GKBI30v9-2XIn1DM&q="{}"'.format(
-        urllib.parse.quote_plus(string))
+    urls = '{}cx={}&key={}&q="{}"'.format(CONFIG["google_search_api_url"],
+                                          CONFIG["google_search_api_cx"],
+                                          CONFIG["google_search_api_key"], urllib.parse.quote_plus(string))
     data = requests.get(urls).json()
     result = data.get("searchInformation")
     result_number = result.get("totalResults")
@@ -225,10 +225,10 @@ def get_key_sentence(save, x, link, title, output):
         insert_into_searchresult(link, title, output, x)  # 录入search result资料表
         print("录入资料库\n")
 
-
-
     # 取得html的原始码
-def get_text(link,title):
+
+
+def get_text(link, title):
     headers = {
         'Host': 'ptlogin2.qq.com',
         "User-Agent": UserAgent(verify_ssl=False).random,
@@ -246,8 +246,6 @@ def get_text(link,title):
         html_page = res.content
         soup = BeautifulSoup(html_page, 'html.parser')  # beautifulsoup抓取网页源代码
 
-
-        
         comments = soup.findAll(text=lambda text: isinstance(text, Comment))  # 去除网页内的注解
         [comment.extract() for comment in comments]
 
@@ -295,7 +293,7 @@ def get_text(link,title):
                 if len(t) > 4:
                     output += '{} '.format(t)
         print("全部的text：\n", output)
-        #insert_into_searchresult(link, title, output, x)  # 录入search result资料表
+        # insert_into_searchresult(link, title, output, x)  # 录入search result资料表
 
         key_words = get_key_words(x)
         cut_all(output, x)
@@ -306,8 +304,7 @@ def get_text(link,title):
         get_key_sentence(save, x, link, title, output)
 
 
-
-def google_connected(x,y,words):
+def google_connected(x, y, words):
     urls = '{}cx={}&key={}&q="{}"&start={}'.format(CONFIG["google_search_api_url"],
                                                    CONFIG["google_search_api_cx"],
                                                    CONFIG["google_search_api_key"], urllib.parse.quote_plus(x), y)
@@ -331,9 +328,11 @@ def google_connected(x,y,words):
             print("=" * 10, f"Result #{i}", "=" * 10)
             print("Description:", snippet)
             print("URL:", link, "\n")
-            get_text(link,title)  # problem：google的网址可能进入pdf档；一些网址需要登入才可以预览内容，需要cookie；
-t1=time.time()
+            get_text(link, title)  # problem：google的网址可能进入pdf档；一些网址需要登入才可以预览内容，需要cookie；
+
+
+t1 = time.time()
 for i in range(3):
-    google_connected(x,i,words)
-t2=time.time()
+    google_connected(x, i, words)
+t2 = time.time()
 print('总共耗时：%s' % (t2 - t1))
