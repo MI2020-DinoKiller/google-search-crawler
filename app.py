@@ -9,7 +9,7 @@ import urllib.parse
 from bs4 import BeautifulSoup, Comment
 from fake_useragent import UserAgent
 import pymysql  # 链接sql资料库
-from jieba.analyse import *
+import math
 
 print("正在分析 config.json 檔案...")
 input_file = open('config.json')
@@ -79,18 +79,6 @@ def insert_into_searchresult(Link, Title, Content, searchstring):
     db.commit()
 
 
-x = sys.argv[1]
-x = zhconv.convert(x, 'zh-tw')  # 简体转换繁体
-words = jieba.lcut_for_search(x)
-x = zhconv.convert(x, 'zh-hans')
-for i in jieba.lcut_for_search(x):
-    words.append(i)  # 分割搜寻字串
-print(words)
-y = sys.argv[2]
-y = int(y)
-y = (y - 1) * 10 + 1
-z = input("取多少字串：")
-z = int(z)
 
 
 # 使用Google的搜寻结果数量来当idf
@@ -124,39 +112,57 @@ def idf_detected(searchstring):
         print("新增完成！")
 
 
-def get_key_words(c):
+def count_idf(c):
     if len(c) != 0:
+        total = 0
         num = []
-        key_words = []
         for i in c:
             n = idf_detected(i)
+            total += int(n)
             num.append(n)
-        # 使用了气泡sort，可以改进
+        idf = []
         for i in range(len(num)):
-            for j in range(len(num) - 1):
-                if num[j + 1] < num[j]:
-                    b = num[j + 1]
-                    num[j + 1] = num[j]
-                    num[j] = b
-                    b = c[j + 1]
-                    c[j + 1] = c[j]
-                    c[j] = b
-        # 选idf最小的三个词
-        print(c[:3])
-    return c[:3]
+            idf.append(math.log(total / (int(num[i]) + 1)))
+            print(c[i], ":", idf[i])
+        return idf
 
 
-def cut_all(output, x):
-    print("\n关键句直接切：\n")
+def sort(sentence, grade):
+    for i in range(len(grade)):
+        for j in range(len(grade) - 1):
+            if grade[j + 1] > grade[j]:
+                g = grade[j + 1]
+                grade[j + 1] = grade[j]
+                grade[j] = g
+                s = sentence[j + 1]
+                sentence[j + 1] = sentence[j]
+                sentence[j] = s
+    for i in range(len(grade)):
+        print(sentence[i], ":", grade[i] / sum_idf, "\n")
+
+
+def get_idf_sentence(c, idf, sentence):
+    grade = []
+    for s in sentence:
+        g = 0
+        for i in range(len(c)):
+            if s.find(c[i]) != 0:
+                g += idf[i]
+        grade.append(g)
+    sort(sentence, grade)
+
+
+def cut(x):
+    # 人工切词
     cuts = []
-    for i in range(1, 5):
+    for i in range(1, 3):
         for j in range(len(x) - i + 1):
-            x = x.encode('utf-8').decode("utf-8")
             w = x[j:j + i]
             cuts.append(w)
-    print("\n", cuts)
-    get_key_words(cuts)
+    return cuts
 
+
+def cut_all(output, cuts):
     c = []  # 储存关键词位置
     for i in cuts:
         start = 0
@@ -167,6 +173,7 @@ def cut_all(output, x):
     c.sort()
     print("\n", c, "\n")
     if len(c) != 0:
+        sentence = []
         start = c[0]  # 初始位置
         end = 0
         for j in range(1, len(c)):
@@ -180,18 +187,12 @@ def cut_all(output, x):
                         output[end] != '？' and output[end] != '！':
                     end += 1
                 print("(", output[start + 1:end], ")")
+                sentence.append(output[start + 1:end])
                 start = c[j]
+        get_idf_sentence(cuts, idf, sentence)
 
 
-def get_key_sentence(save, x, link, title, output):
-    print("\n搜寻句直接切：")
-    cuts = []
-    for i in range(1, 5):
-        for j in range(len(x) - i + 1):
-            x = x.encode('utf-8').decode("utf-8")
-            w = x[j:j + i]
-            cuts.append(w)
-    print("\n", cuts)
+def get_key_sentence(save, link, title, output, cuts):
     index = []
     data_key = []  # 关键句
     print("关键句筛选：")
@@ -225,8 +226,28 @@ def get_key_sentence(save, x, link, title, output):
         insert_into_searchresult(link, title, output, x)  # 录入search result资料表
         print("录入资料库\n")
 
-    # 取得html的原始码
+        # 取得html的原始码
 
+x = sys.argv[1]
+x=x.replace(" ","")
+insert_into_search(x)
+x = zhconv.convert(x, 'zh-tw')  # 简体转换繁体
+print("\n关键句直接切：\n")
+cuts=cut(x)
+x=zhconv.convert(x, 'zh-hans')
+for i in cut(x):
+    if i not in cuts:
+        cuts.append(i)
+print("\n",cuts)
+idf=count_idf(cuts)
+sum_idf=0
+for i in idf:
+    sum_idf+=i
+y = sys.argv[2]
+y = int(y)
+y = (y - 1) * 10 + 1
+z = input("取多少字串：")
+z = int(z)
 
 def get_text(link, title):
     headers = {
@@ -295,7 +316,6 @@ def get_text(link, title):
         print("全部的text：\n", output)
         # insert_into_searchresult(link, title, output, x)  # 录入search result资料表
 
-        key_words = get_key_words(x)
         cut_all(output, x)
 
         save = re.split(r'[。！?\s]', output)
@@ -333,6 +353,6 @@ def google_connected(x, y, words):
 
 t1 = time.time()
 for i in range(3):
-    google_connected(x, i, words)
+    google_connected(x, i)
 t2 = time.time()
 print('总共耗时：%s' % (t2 - t1))
