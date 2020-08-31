@@ -130,17 +130,12 @@ def count_idf(c):
 
 
 def sort(sentence, grade):
-    for i in range(len(grade)):
-        for j in range(len(grade) - 1):
-            if grade[j + 1] > grade[j]:
-                g = grade[j + 1]
-                grade[j + 1] = grade[j]
-                grade[j] = g
-                s = sentence[j + 1]
-                sentence[j + 1] = sentence[j]
-                sentence[j] = s
-    for i in range(len(grade)):
-        print(sentence[i], ":", grade[i] / sum_idf, "\n")
+    s_g = []
+    for s in range(len(grade)):
+        s_g.append([sentence[s], grade[s]])
+    s_g = sorted(s_g, key=lambda sl: (sl[1]))
+    for i in s_g:
+        print(i[0], ":", i[1] / sum_idf, "\n")
 
 
 def get_idf_sentence(c, idf, sentence):
