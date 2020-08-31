@@ -3,16 +3,18 @@ import time
 import sys
 import requests
 import json
-import jieba
 import zhconv  # 简体繁体转换
 import urllib.parse
 from bs4 import BeautifulSoup, Comment
 from fake_useragent import UserAgent
 import pymysql  # 链接sql资料库
 import math
+import os
+
+dataPath = os.path.dirname(os.path.abspath(__file__))
 
 print("正在分析 config.json 檔案...")
-input_file = open('config.json')
+input_file = open(os.path.join(dataPath, 'config.json'))
 CONFIG = json.load(input_file)
 print("分析完畢 config.json")
 
@@ -324,7 +326,7 @@ def get_text(link, title):
         get_key_sentence(save, x, link, title, output)
 
 
-def google_connected(x, y, words):
+def google_connected(x, y):
     urls = '{}cx={}&key={}&q="{}"&start={}'.format(CONFIG["google_search_api_url"],
                                                    CONFIG["google_search_api_cx"],
                                                    CONFIG["google_search_api_key"], urllib.parse.quote_plus(x), y)
