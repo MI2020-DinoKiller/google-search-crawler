@@ -193,43 +193,6 @@ def cut_all(output, cuts):
                 start = c[j]
         get_idf_sentence(cuts, idf, sentence)
 
-
-def get_key_sentence(save, link, title, output, cuts):
-    index = []
-    data_key = []  # 关键句
-    print("关键句筛选：")
-    for i in range(len(save)):
-        num = 0
-        for w in cuts:
-            num += len(re.findall(w, save[i]))
-        if num > 0:
-            index.append(i)
-            data_key.append(save[i])
-            print(save[i], "\n")
-
-    print("\n关键段落：")
-    key = []
-    if len(index) > 0:
-        start = index[0]  # 初始位置
-        end = 0
-        for i in range(1, len(index)):
-            if index[i] - start <= 3:
-                end = index[i]
-            else:
-                for j in range(start - 1, end + 1):
-                    if save[j] not in key:
-                        key.append(save[j])
-                start = index[i]
-
-        for k in key:
-            print(k, "\n")
-
-    if len(data_key) > 0:
-        insert_into_searchresult(link, title, output, x)  # 录入search result资料表
-        print("录入资料库\n")
-
-        # 取得html的原始码
-
 x = sys.argv[1]
 x=x.replace(" ","")
 insert_into_search(x)
@@ -321,9 +284,6 @@ def get_text(link, title):
 
         save = re.split(r'[。！?\s]', output)
         print("全文分割：", save, "\n")
-
-        get_key_sentence(save, x, link, title, output)
-
 
 def google_connected(x, y):
     urls = '{}cx={}&key={}&q="{}"&start={}'.format(CONFIG["google_search_api_url"],
