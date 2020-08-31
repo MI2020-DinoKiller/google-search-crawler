@@ -248,8 +248,7 @@ for i in idf:
 y = sys.argv[2]
 y = int(y)
 y = (y - 1) * 10 + 1
-z = input("取多少字串：")
-z = int(z)
+z = 120
 
 def get_text(link, title):
     headers = {
