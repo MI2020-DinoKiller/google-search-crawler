@@ -31,32 +31,31 @@ print('连接上了!')
 cursor = db.cursor()
 
 
-def insert_into_search(searchstring):
-    sql = "select SearchId from search where SearchString ='" + searchstring + "'"
+def insert_into_search(searchstring: str):
+    sql = "SELECT `SearchId` FROM `search` WHERE `SearchString`=%s"
     # 需要先执行sql语句
-    if cursor.execute(sql):
+    if cursor.execute(sql, (searchstring)):
         # 得到返回值jilu,jilu是一个元组
         jilu = cursor.fetchone()
         # 通过下标取出值即可
         print('已有相同搜寻,对应的id是：', jilu['SearchId'])
     else:
         print('没有对应的搜寻，新增中。。。。')
-        insert_color = ("INSERT INTO search(SearchString)" "VALUES(%s)")
-        dese = (searchstring)
-        cursor.execute(insert_color, dese)
+        insert_color = "INSERT INTO `search` (`SearchString`) VALUES (%s)"
+        cursor.execute(insert_color, (searchstring))
         db.commit()
         print("新增完成！")
 
 
-def find_searchId(searchstring):
-    sql = "select SearchId from search where SearchString ='" + searchstring + "'"
+def find_searchId(searchstring: str):
+    sql = "SELECT `SearchId` FROM `search` WHERE `SearchString`=%s"
     # 需要先执行sql语句
-    if cursor.execute(sql):
+    if cursor.execute(sql, (searchstring)):
         # 得到返回值jilu,jilu是一个元组
         jilu = cursor.fetchone()
         # 通过下标取出值即可
-        Id = jilu['SearchId']
-        return (Id)
+        ret = jilu['SearchId']
+        return ret
 
 
 def find_white_id(link):
@@ -69,18 +68,16 @@ def find_white_id(link):
         if len(re.findall(row['WhiteListLink'], link)):
             Id = row['WhiteListId']
         row = cursor.fetchone()
-    return (Id)
+    return Id
 
 
 def insert_into_searchresult(Link, Title, Content, searchstring):
     Id = find_searchId(searchstring)
     # whitelistid=find_white_id(Link)
-    insert_color = ("INSERT INTO searchresult(Link,Title,Content,SearchId)" "VALUES(%s,%s,%s,%s)")
+    insert_color = "INSERT INTO searchresult(Link,Title,Content,SearchId) VALUES(%s,%s,%s,%s)"
     dese = (Link, Title, Content, Id)
     cursor.execute(insert_color, dese)
     db.commit()
-
-
 
 
 # 使用Google的搜寻结果数量来当idf
@@ -95,23 +92,23 @@ def find_idf(string):
 
 
 def idf_detected(searchstring):
-    sql = "select idfnumber from idf where idfstring ='" + searchstring + "'"
+    sql = "SELECT `idfnumber` FROM `idfh` WHERE `idfstring`=%s"
     # 需要先执行sql语句
-    if cursor.execute(sql):
+    if cursor.execute(sql, (searchstring)):
         # 得到返回值jilu,jilu是一个元组
         jilu = cursor.fetchone()
         # 通过下标取出值即可
-        return jilu['idfnumber']
         print('已有相同搜寻,对应的idf分值是：', jilu['idfnumber'])
+        return jilu['idfnumber']
     else:
         print('没有对应的搜寻，新增中。。。。')
         number = find_idf(searchstring)
-        insert_color = ("INSERT INTO idf(idfstring,idfnumber)" "VALUES(%s,%s)")
+        insert_color = "INSERT INTO `idf`(`idfstring`, `idfnumber`) VALUES (%s, %s)"
         dese = (searchstring, number)
         cursor.execute(insert_color, dese)
         db.commit()
-        return number
         print("新增完成！")
+        return number
 
 
 def count_idf(c):
@@ -193,25 +190,27 @@ def cut_all(output, cuts):
                 start = c[j]
         get_idf_sentence(cuts, idf, sentence)
 
+
 x = sys.argv[1]
-x=x.replace(" ","")
+x = x.replace(" ", "")
 insert_into_search(x)
 x = zhconv.convert(x, 'zh-tw')  # 简体转换繁体
 print("\n关键句直接切：\n")
-cuts=cut(x)
-x=zhconv.convert(x, 'zh-hans')
+cuts = cut(x)
+x = zhconv.convert(x, 'zh-hans')
 for i in cut(x):
     if i not in cuts:
         cuts.append(i)
-print("\n",cuts)
-idf=count_idf(cuts)
-sum_idf=0
+print("\n", cuts)
+idf = count_idf(cuts)
+sum_idf = 0
 for i in idf:
-    sum_idf+=i
+    sum_idf += i
 y = sys.argv[2]
 y = int(y)
 y = (y - 1) * 10 + 1
 z = 120
+
 
 def get_text(link, title):
     headers = {
@@ -284,6 +283,7 @@ def get_text(link, title):
 
         save = re.split(r'[。！?\s]', output)
         print("全文分割：", save, "\n")
+
 
 def google_connected(x, y):
     urls = '{}cx={}&key={}&q="{}"&start={}'.format(CONFIG["google_search_api_url"],
