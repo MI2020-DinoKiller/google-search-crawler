@@ -92,7 +92,7 @@ def find_idf(string):
 
 
 def idf_detected(searchstring):
-    sql = "SELECT `idfnumber` FROM `idfh` WHERE `idfstring`=%s"
+    sql = "SELECT `idfnumber` FROM `idf` WHERE `idfstring`=%s"
     # 需要先执行sql语句
     if cursor.execute(sql, (searchstring)):
         # 得到返回值jilu,jilu是一个元组
