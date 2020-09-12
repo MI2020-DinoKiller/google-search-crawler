@@ -1,15 +1,15 @@
+import os
 import re
-import time
 import sys
-import requests
+import math
+import time
 import json
-import zhconv  # 简体繁体转换
+import zhconv  # 簡體繁體轉換
+import requests
 import urllib.parse
 from bs4 import BeautifulSoup, Comment
 from fake_useragent import UserAgent
-import pymysql  # 链接sql资料库
-import math
-import os
+import pymysql  # 鏈接sql資料庫
 
 dataPath = os.path.dirname(os.path.abspath(__file__))
 
@@ -18,8 +18,8 @@ input_file = open(os.path.join(dataPath, 'config.json'))
 CONFIG = json.load(input_file)
 print("分析完畢 config.json")
 
-# 链接mysql
-print('连接到mysql服务器...')
+# 鏈接mysql
+print('連接到mysql服務器...')
 db = pymysql.connect(
     host=CONFIG["Database"]["host"],
     user=CONFIG["Database"]["user"],
@@ -27,20 +27,20 @@ db = pymysql.connect(
     db=CONFIG["Database"]["dbname"],
     charset=CONFIG["Database"]["charset"],
     cursorclass=pymysql.cursors.DictCursor)
-print('连接上了!')
+print('連接上了!')
 cursor = db.cursor()
 
 
 def insert_into_search(searchstring: str):
     sql = "SELECT `SearchId` FROM `search` WHERE `SearchString`=%s"
-    # 需要先执行sql语句
+    # 需要先執行sql語句
     if cursor.execute(sql, (searchstring)):
-        # 得到返回值jilu,jilu是一个元组
+        # 得到返回值jilu,jilu是一個元組
         jilu = cursor.fetchone()
-        # 通过下标取出值即可
-        print('已有相同搜寻,对应的id是：', jilu['SearchId'])
+        # 通過下標取出值即可
+        print('已有相同搜尋,對應的id是：', jilu['SearchId'])
     else:
-        print('没有对应的搜寻，新增中。。。。')
+        print('沒有對應的搜尋，新增中。。。。')
         insert_color = "INSERT INTO `search` (`SearchString`) VALUES (%s)"
         cursor.execute(insert_color, (searchstring))
         db.commit()
@@ -49,18 +49,18 @@ def insert_into_search(searchstring: str):
 
 def find_searchId(searchstring: str):
     sql = "SELECT `SearchId` FROM `search` WHERE `SearchString`=%s"
-    # 需要先执行sql语句
+    # 需要先執行sql語句
     if cursor.execute(sql, (searchstring)):
-        # 得到返回值jilu,jilu是一个元组
+        # 得到返回值jilu,jilu是一個元組
         jilu = cursor.fetchone()
-        # 通过下标取出值即可
+        # 通過下標取出值即可
         ret = jilu['SearchId']
         return ret
 
 
 def find_white_id(link):
-    sql = "select * from whitelist"
-    # 需要先执行sql语句
+    sql = "SELECT * FROM `whitelist`"
+    # 需要先執行sql語句
     Id = ""
     row = cursor.fetchone()
     while row:
@@ -80,7 +80,7 @@ def insert_into_searchresult(Link, Title, Content, searchstring):
     db.commit()
 
 
-# 使用Google的搜寻结果数量来当idf
+# 使用Google的搜尋結果數量來當idf
 def find_idf(string):
     urls = '{}cx={}&key={}&q="{}"'.format(CONFIG["google_search_api_url"],
                                           CONFIG["google_search_api_cx"],
@@ -93,15 +93,15 @@ def find_idf(string):
 
 def idf_detected(searchstring):
     sql = "SELECT `idfnumber` FROM `idf` WHERE `idfstring`=%s"
-    # 需要先执行sql语句
+    # 需要先執行sql語句
     if cursor.execute(sql, (searchstring)):
-        # 得到返回值jilu,jilu是一个元组
+        # 得到返回值jilu,jilu是一個元組
         jilu = cursor.fetchone()
-        # 通过下标取出值即可
-        print('已有相同搜寻,对应的idf分值是：', jilu['idfnumber'])
+        # 通過下標取出值即可
+        print('已有相同搜尋,對應的idf分值是：', jilu['idfnumber'])
         return jilu['idfnumber']
     else:
-        print('没有对应的搜寻，新增中。。。。')
+        print('沒有對應的搜尋，新增中。。。。')
         number = find_idf(searchstring)
         insert_color = "INSERT INTO `idf`(`idfstring`, `idfnumber`) VALUES (%s, %s)"
         dese = (searchstring, number)
@@ -147,7 +147,7 @@ def get_idf_sentence(c, idf, sentence):
 
 
 def cut(x):
-    # 人工切词
+    # 人工切詞
     cuts = []
     for i in range(1, 3):
         for j in range(len(x) - i + 1):
@@ -157,7 +157,7 @@ def cut(x):
 
 
 def cut_all(output, cuts):
-    c = []  # 储存关键词位置
+    c = []  # 儲存關鍵詞位置
     for i in cuts:
         start = 0
         while (output.find(i, start) != -1):
@@ -189,8 +189,8 @@ def cut_all(output, cuts):
 x = sys.argv[1]
 x = x.replace(" ", "")
 insert_into_search(x)
-x = zhconv.convert(x, 'zh-tw')  # 简体转换繁体
-print("\n关键句直接切：\n")
+x = zhconv.convert(x, 'zh-tw')  # 簡體轉換繁體
+print("\n關鍵句直接切：\n")
 cuts = cut(x)
 x = zhconv.convert(x, 'zh-hans')
 for i in cut(x):
@@ -220,12 +220,12 @@ def get_text(link, title):
     try:
         res = requests.get(link, headers)
     except Exception as e:
-        print(e)  # 输出异常行为名称
+        print(e)  # 輸出異常行為名稱
     else:
         html_page = res.content
-        soup = BeautifulSoup(html_page, 'html.parser')  # beautifulsoup抓取网页源代码
+        soup = BeautifulSoup(html_page, 'html.parser')  # beautifulsoup抓取網頁源代碼
 
-        comments = soup.findAll(text=lambda text: isinstance(text, Comment))  # 去除网页内的注解
+        comments = soup.findAll(text=lambda text: isinstance(text, Comment))  # 去除網頁內的註解
         [comment.extract() for comment in comments]
 
         save = []
@@ -272,7 +272,7 @@ def get_text(link, title):
                 if len(t) > 4:
                     output += '{} '.format(t)
         print("全部的text：\n", output)
-        # insert_into_searchresult(link, title, output, x)  # 录入search result资料表
+        # insert_into_searchresult(link, title, output, x)  # 錄入search result資料表
 
         cut_all(output, x)
 
@@ -288,7 +288,7 @@ def google_connected(x, y):
     # get the result items
     search_items = data.get("items")
     if search_items is None:
-        print("无相关资料！")  # 是否有搜寻到资料
+        print("無相關資料！")  # 是否有搜尋到資料
     else:
         # iterate over 10 results found
         for i, search_item in enumerate(search_items, start=y):
@@ -304,11 +304,11 @@ def google_connected(x, y):
             print("=" * 10, f"Result #{i}", "=" * 10)
             print("Description:", snippet)
             print("URL:", link, "\n")
-            get_text(link, title)  # problem：google的网址可能进入pdf档；一些网址需要登入才可以预览内容，需要cookie；
+            get_text(link, title)  # problem：google的網址可能進入pdf檔；一些網址需要登入才可以預覽內容，需要cookie；
 
 
 t1 = time.time()
 for i in range(3):
     google_connected(x, i)
 t2 = time.time()
-print('总共耗时：%s' % (t2 - t1))
+print('總共耗時：%s' % (t2 - t1))
