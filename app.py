@@ -180,7 +180,7 @@ def cut_all(output, cuts):
                 while output[end] != '。' and output[end] != '!' and output[end] != '?' and output[end] != ' ' and \
                         output[end] != '？' and output[end] != '！':
                     end += 1
-                print("(", output[start + 1:end], ")")
+                print("[", output[start + 1:end], "]")
                 sentence.append(output[start + 1:end])
                 start = c[j]
         get_idf_sentence(cuts, idf, sentence)
