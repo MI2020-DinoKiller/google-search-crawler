@@ -130,7 +130,7 @@ def sort(sentence, grade):
     s_g = []
     for s in range(len(grade)):
         s_g.append([sentence[s], grade[s]])
-    s_g = sorted(s_g, key=lambda sl: (sl[1]))
+    s_g = sorted(s_g, key=lambda sl: (sl[1]), reverse=True)
     for i in s_g:
         print(i[0], ":", i[1] / sum_idf, "\n")
 
@@ -170,6 +170,7 @@ def cut_all(output, cuts):
         sentence = []
         start = c[0]  # 初始位置
         end = 0
+        print("[")
         for j in range(1, len(c)):
             if c[j] - start <= z:
                 end = c[j]
@@ -180,9 +181,10 @@ def cut_all(output, cuts):
                 while output[end] != '。' and output[end] != '!' and output[end] != '?' and output[end] != ' ' and \
                         output[end] != '？' and output[end] != '！':
                     end += 1
-                print("[", output[start + 1:end], "]")
+                print("\"", output[start + 1:end], "\"")
                 sentence.append(output[start + 1:end])
                 start = c[j]
+        print("]")
         get_idf_sentence(cuts, idf, sentence)
 
 
