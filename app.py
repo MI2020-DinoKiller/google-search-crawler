@@ -71,7 +71,7 @@ def find_white_id(link):
     return Id
 
 
-def insert_into_searchresult(Link, Title, Content, searchstring):
+def insert_into_searchresult(Link: str, Title: str, Content: str, searchstring: str):
     Id = find_searchId(searchstring)
     # whitelistid=find_white_id(Link)
     insert_color = "INSERT INTO searchresult(Link,Title,Content,SearchId) VALUES(%s,%s,%s,%s)"
@@ -181,7 +181,7 @@ def cut_all(output, cuts):
                 while output[end] != '。' and output[end] != '!' and output[end] != '?' and output[end] != ' ' and \
                         output[end] != '？' and output[end] != '！':
                     end += 1
-                print("\"", output[start + 1:end], "\"")
+                print("\"", output[start + 1:end], "\"", sep='')
                 sentence.append(output[start + 1:end])
                 start = c[j]
         print("]")
@@ -206,7 +206,7 @@ for i in idf:
 y = sys.argv[2]
 y = int(y)
 y = (y - 1) * 10 + 1
-z = 120
+z = 150
 
 
 def get_text(link, title):
