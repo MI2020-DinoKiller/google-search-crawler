@@ -181,6 +181,17 @@ def cut_all(output, cuts):
                 while output[end] != '。' and output[end] != '!' and output[end] != '?' and output[end] != ' ' and \
                         output[end] != '？' and output[end] != '！':
                     end += 1
+                #去除重复句子
+                last_str = ''
+                for s in output[start + 1:end]:
+                    if s != '。' and s != '!' and s != '?' and s != ' ' and s != '？' and s != '！':
+                        last_str += s
+                    else:
+                        break
+                #print(last_str)
+                if len(sentence) > 0:
+                    if sentence[-1].find(last_str) != -1:
+                        start += len(last_str) + 1
                 print("\"", output[start + 1:end], "\"", sep='')
                 sentence.append(output[start + 1:end])
                 start = c[j]
