@@ -8,5 +8,10 @@
   },
   "google_search_api_url": "https://www.googleapis.com/customsearch/v1?",
   "google_search_api_cx": "YOUR_CUSTOM_SEARCH_API_CX",
-  "google_search_api_key": "YOUR_CUSTOM_SEARCH_API_KEY"
+  "google_search_api_key": "YOUR_CUSTOM_SEARCH_API_KEY",
+  "GSR_API_KEY": "YOUR_SCALE_SERP_API_KEY",
+  "RabbitMQ": {
+    "host": "RabbitMQ_HOST",
+    "queue": "RabbitMQ_QUEUE_NAME"
+  }
 }

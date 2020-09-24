@@ -1,25 +1,34 @@
+import math
 import os
 import re
-import sys
-import math
-import time
 import json
-import zhconv  # 簡體繁體轉換
+import logging
+import sys
+import time
+import string
+
+import pika as pika
+import pymysql
 import requests
-import urllib.parse
-from bs4 import BeautifulSoup, Comment
+import zhconv
+from serpwow.google_search_results import GoogleSearchResults
 from fake_useragent import UserAgent
-import pymysql  # 鏈接sql資料庫
+from bs4 import BeautifulSoup, Comment
+import unicodedata
+
+
+def remove_control_characters(s):
+    return "".join(ch for ch in s if unicodedata.category(ch)[0]!="C" or unicodedata.category(ch)[0]!="Z")
 
 dataPath = os.path.dirname(os.path.abspath(__file__))
 
-print("正在分析 config.json 檔案...")
+logging.info("正在分析 config.json 檔案...")
 input_file = open(os.path.join(dataPath, 'config.json'))
 CONFIG = json.load(input_file)
-print("分析完畢 config.json")
+logging.info("分析完畢 config.json")
 
 # 鏈接mysql
-print('連接到mysql服務器...')
+logging.info('連接到mysql服務器...')
 db = pymysql.connect(
     host=CONFIG["Database"]["host"],
     user=CONFIG["Database"]["user"],
@@ -27,9 +36,10 @@ db = pymysql.connect(
     db=CONFIG["Database"]["dbname"],
     charset=CONFIG["Database"]["charset"],
     cursorclass=pymysql.cursors.DictCursor)
-print('連接上了!')
+logging.info('連接上了!')
 cursor = db.cursor()
 
+serpwow = GoogleSearchResults(CONFIG["GSR_API_KEY"])
 
 def insert_into_search(searchstring: str):
     sql = "SELECT `SearchId` FROM `search` WHERE `SearchString`=%s"
@@ -45,7 +55,6 @@ def insert_into_search(searchstring: str):
         cursor.execute(insert_color, (searchstring))
         db.commit()
         print("新增完成！")
-
 
 def find_searchId(searchstring: str):
     sql = "SELECT `SearchId` FROM `search` WHERE `SearchString`=%s"
@@ -70,7 +79,6 @@ def find_white_id(link):
         row = cursor.fetchone()
     return Id
 
-
 def insert_into_searchresult(Link: str, Title: str, Content: str, searchstring: str):
     Id = find_searchId(searchstring)
     # whitelistid=find_white_id(Link)
@@ -82,14 +90,19 @@ def insert_into_searchresult(Link: str, Title: str, Content: str, searchstring: 
 
 # 使用Google的搜尋結果數量來當idf
 def find_idf(string):
-    urls = '{}cx={}&key={}&q="{}"'.format(CONFIG["google_search_api_url"],
-                                          CONFIG["google_search_api_cx"],
-                                          CONFIG["google_search_api_key"], urllib.parse.quote_plus(string))
-    data = requests.get(urls).json()
+    # urls = '{}cx={}&key={}&q="{}"'.format(CONFIG["google_search_api_url"],
+    #                                       CONFIG["google_search_api_cx"],
+    #                                       CONFIG["google_search_api_key"], urllib.parse.quote_plus(string))
+    # data = requests.get(urls).json()
+    my_params = {
+        "cx": CONFIG["google_search_api_cx"],
+        "key": CONFIG["google_search_api_key"],
+        "q": string
+    }
+    data = requests.get(CONFIG["google_search_api_url"], my_params).json()
     result = data.get("searchInformation")
     result_number = result.get("totalResults")
     return result_number
-
 
 def idf_detected(searchstring):
     sql = "SELECT `idfnumber` FROM `idf` WHERE `idfstring`=%s"
@@ -188,36 +201,22 @@ def cut_all(output, cuts):
                         last_str += s
                     else:
                         break
-                #print(last_str)
                 if len(sentence) > 0:
                     if sentence[-1].find(last_str) != -1:
                         start += len(last_str) + 1
-                print("\"", output[start + 1:end], "\"", sep='')
-                sentence.append(output[start + 1:end])
+                result = output[start + 1:end].strip()
+                result = result.translate(str.maketrans('', '', string.whitespace))
+                result = remove_control_characters(result)
+
+                if result != "":
+                    sentence.append(result)
+                    print("\"", result, "\",", sep='')
+
                 start = c[j]
         print("]")
         get_idf_sentence(cuts, idf, sentence)
+        return sentence
 
-
-x = sys.argv[1]
-x = x.replace(" ", "")
-insert_into_search(x)
-x = zhconv.convert(x, 'zh-tw')  # 簡體轉換繁體
-print("\n關鍵句直接切：\n")
-cuts = cut(x)
-x = zhconv.convert(x, 'zh-hans')
-for i in cut(x):
-    if i not in cuts:
-        cuts.append(i)
-print("\n", cuts)
-idf = count_idf(cuts)
-sum_idf = 0
-for i in idf:
-    sum_idf += i
-y = sys.argv[2]
-y = int(y)
-y = (y - 1) * 10 + 1
-z = 150
 
 
 def get_text(link, title):
@@ -238,7 +237,7 @@ def get_text(link, title):
         html_page = res.content
         soup = BeautifulSoup(html_page, 'html.parser')  # beautifulsoup抓取網頁源代碼
 
-        comments = soup.findAll(text=lambda text: isinstance(text, Comment))  # 去除網頁內的註解
+        comments = soup.findAll(text=lambda func_text: isinstance(func_text, Comment))  # 去除網頁內的註解
         [comment.extract() for comment in comments]
 
         save = []
@@ -267,7 +266,6 @@ def get_text(link, title):
             'section',
             'select',
             'style',
-            'strong',
             'sub',
             'sup',
             'svg',
@@ -283,45 +281,66 @@ def get_text(link, title):
         for t in text:
             if t.parent.name not in blacklist:
                 if len(t) > 4:
-                    output += '{} '.format(t)
-        print("全部的text：\n", output)
+                    output += '{}'.format(t.strip())
+        # print("全部的text：\n", output)
         # insert_into_searchresult(link, title, output, x)  # 錄入search result資料表
 
-        cut_all(output, x)
-
-        save = re.split(r'[。！?\s]', output)
-        print("全文分割：", save, "\n")
+        ret = cut_all(output, x)
+        print(ret)
+        return ret
 
 
 def google_connected(x, y):
-    urls = '{}cx={}&key={}&q="{}"&start={}'.format(CONFIG["google_search_api_url"],
-                                                   CONFIG["google_search_api_cx"],
-                                                   CONFIG["google_search_api_key"], urllib.parse.quote_plus(x), y)
-    data = requests.get(urls).json()
+    params = {
+        'api_key': CONFIG["GSR_API_KEY"],
+        'q': x,
+        'gl': 'tw',
+        'hl': 'zh-tw',
+        'location': 'Taiwan',
+        'num': y,
+        'google_domain': 'google.com.tw',
+        'output': 'json',
+        'lr': 'lang_zh-TW'
+    }
+    # make the http GET request to Scale SERP
+    api_result = requests.get('https://api.scaleserp.com/search', params)
+    data = api_result.json()
+    # print(json.dumps(data))
     # get the result items
-    search_items = data.get("items")
+    search_items = data.get("organic_results")
     if search_items is None:
         print("無相關資料！")  # 是否有搜尋到資料
     else:
         # iterate over 10 results found
-        for i, search_item in enumerate(search_items, start=y):
+        for i, search_item in enumerate(search_items):
             # get the page title
             title = search_item.get("title")
             # page snippet
             snippet = search_item.get("snippet")
-            # alternatively, you can get the HTML snippet (bolded keywords)
-            html_snippet = search_item.get("htmlSnippet")
             # extract the page url
             link = search_item.get("link")
             # print the results
             print("=" * 10, f"Result #{i}", "=" * 10)
             print("Description:", snippet)
             print("URL:", link, "\n")
-            get_text(link, title)  # problem：google的網址可能進入pdf檔；一些網址需要登入才可以預覽內容，需要cookie；
+            ret = get_text(link, title)  # problem：google的網址可能進入pdf檔；一些網址需要登入才可以預覽內容，需要cookie；
 
-
+x = sys.argv[1]
+x = x.replace(" ", "")
+insert_into_search(x)
+print("\n關鍵句直接切：\n")
+cuts = cut(x)
+for i in cut(x):
+    if i not in cuts:
+        cuts.append(i)
+print("\n", cuts)
+idf = count_idf(cuts)
+sum_idf = 0
+for i in idf:
+    sum_idf += i
+y = 30
+z = 150
 t1 = time.time()
-for i in range(3):
-    google_connected(x, i)
+google_connected(x, y)
 t2 = time.time()
 print('總共耗時：%s' % (t2 - t1))
