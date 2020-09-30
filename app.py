@@ -111,7 +111,6 @@ def idf_detected(searchstring):
         # 得到返回值jilu,jilu是一個元組
         jilu = cursor.fetchone()
         # 通過下標取出值即可
-        print('已有相同搜尋,對應的idf分值是：', jilu['idfnumber'])
         return jilu['idfnumber']
     else:
         print('沒有對應的搜尋，新增中。。。。')
