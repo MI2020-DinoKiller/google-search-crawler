@@ -144,7 +144,8 @@ def sort(sentence, grade):
         s_g.append([sentence[s], grade[s]])
     s_g = sorted(s_g, key=lambda sl: (sl[1]), reverse=True)
     for i in s_g:
-        print(i[0], ":", i[1] / sum_idf, "\n")
+        if (i[1] / sum_idf) >= 0.5:
+            print(i[0], ":", i[1] / sum_idf, "\n")
 
 
 def get_idf_sentence(c, idf, sentence):
@@ -152,7 +153,7 @@ def get_idf_sentence(c, idf, sentence):
     for s in sentence:
         g = 0
         for i in range(len(c)):
-            if s.find(c[i]) != 0:
+            if s.find(c[i]) != -1:
                 g += idf[i]
         grade.append(g)
     sort(sentence, grade)
@@ -161,10 +162,8 @@ def get_idf_sentence(c, idf, sentence):
 def cut(x):
     # 人工切詞
     cuts = []
-    for i in range(1, 3):
-        for j in range(len(x) - i + 1):
-            w = x[j:j + i]
-            cuts.append(w)
+    for j in x:
+        cuts.append(j)
     return cuts
 
 
