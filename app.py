@@ -18,7 +18,8 @@ import unicodedata
 
 
 def remove_control_characters(s):
-    return "".join(ch for ch in s if unicodedata.category(ch)[0]!="C" or unicodedata.category(ch)[0]!="Z")
+    return "".join(ch for ch in s if unicodedata.category(ch)[0] != "C" or unicodedata.category(ch)[0] != "Z")
+
 
 dataPath = os.path.dirname(os.path.abspath(__file__))
 
@@ -41,6 +42,7 @@ cursor = db.cursor()
 
 serpwow = GoogleSearchResults(CONFIG["GSR_API_KEY"])
 
+
 def insert_into_search(searchstring: str):
     sql = "SELECT `SearchId` FROM `search` WHERE `SearchString`=%s"
     # 需要先執行sql語句
@@ -55,6 +57,7 @@ def insert_into_search(searchstring: str):
         cursor.execute(insert_color, (searchstring))
         db.commit()
         print("新增完成！")
+
 
 def find_searchId(searchstring: str):
     sql = "SELECT `SearchId` FROM `search` WHERE `SearchString`=%s"
@@ -78,6 +81,7 @@ def find_white_id(link):
             Id = row['WhiteListId']
         row = cursor.fetchone()
     return Id
+
 
 def insert_into_searchresult(Link: str, Title: str, Content: str, searchstring: str):
     Id = find_searchId(searchstring)
@@ -103,6 +107,7 @@ def find_idf(string):
     result = data.get("searchInformation")
     result_number = result.get("totalResults")
     return result_number
+
 
 def idf_detected(searchstring):
     sql = "SELECT `idfnumber` FROM `idf` WHERE `idfstring`=%s"
@@ -186,13 +191,13 @@ def cut_all(output, cuts):
             if c[j] - start <= z:
                 end = c[j]
             else:
-                while output[start] != '。' and output[start] != '!' and output[start] != '?' and output[
-                    start] != ' ' and output[start] != '？' and output[start] != '！':
+                while output[start] != '。' and output[start] != '!' and output[start] != '?' and output[start] != ' '\
+                        and output[start] != '？' and output[start] != '！':
                     start -= 1
                 while output[end] != '。' and output[end] != '!' and output[end] != '?' and output[end] != ' ' and \
                         output[end] != '？' and output[end] != '！':
                     end += 1
-                #去除重复句子
+                # 去除重复句子
                 last_str = ''
                 for s in output[start + 1:end]:
                     if s != '。' and s != '!' and s != '?' and s != ' ' and s != '？' and s != '！':
@@ -214,7 +219,6 @@ def cut_all(output, cuts):
         print("]")
         get_idf_sentence(cuts, idf, sentence)
         return sentence
-
 
 
 def get_text(link, title):
@@ -322,6 +326,7 @@ def google_connected(x, y):
             print("Description:", snippet)
             print("URL:", link, "\n")
             ret = get_text(link, title)  # problem：google的網址可能進入pdf檔；一些網址需要登入才可以預覽內容，需要cookie；
+
 
 x = sys.argv[1]
 x = x.replace(" ", "")
