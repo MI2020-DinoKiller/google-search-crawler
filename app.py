@@ -28,6 +28,13 @@ input_file = open(os.path.join(dataPath, 'config.json'))
 CONFIG = json.load(input_file)
 logging.info("分析完畢 config.json")
 
+logging.info('Connecting RabbitMQ......')
+connection = pika.BlockingConnection(pika.ConnectionParameters(
+    host=CONFIG["RABBITMQ"]["HOST"]))
+channel = connection.channel()
+channel.queue_declare(queue=CONFIG["RABBITMQ"]["QUEUE"], durable=True)
+logging.info('Connected RabbitMQ Success!')
+
 # 鏈接mysql
 logging.info('連接到mysql服務器...')
 db = pymysql.connect(
@@ -93,11 +100,7 @@ def insert_into_searchresult(Link: str, Title: str, Content: str, searchstring: 
 
 
 # 使用Google的搜尋結果數量來當idf
-def find_idf(string):
-    # urls = '{}cx={}&key={}&q="{}"'.format(CONFIG["google_search_api_url"],
-    #                                       CONFIG["google_search_api_cx"],
-    #                                       CONFIG["google_search_api_key"], urllib.parse.quote_plus(string))
-    # data = requests.get(urls).json()
+def find_idf(string: str):
     my_params = {
         "cx": CONFIG["google_search_api_cx"],
         "key": CONFIG["google_search_api_key"],
@@ -148,28 +151,28 @@ def sort(sentence, grade):
     for s in range(len(grade)):
         s_g.append([sentence[s], grade[s]])
     s_g = sorted(s_g, key=lambda sl: (sl[1]), reverse=True)
-    for i in s_g:
-        if (i[1] / sum_idf) >= 0.5:
-            print(i[0], ":", i[1] / sum_idf, "\n")
+    for counter in s_g:
+        if (counter[1] / idf_sum) >= 0.5:
+            print(counter[0], ":", counter[1] / idf_sum, "\n")
 
 
 def get_idf_sentence(c, idf, sentence):
     grade = []
     for s in sentence:
         g = 0
-        for i in range(len(c)):
-            if s.find(c[i]) != -1:
-                g += idf[i]
+        for counter in range(len(c)):
+            if s.find(c[counter]) != -1:
+                g += idf[counter]
         grade.append(g)
     sort(sentence, grade)
 
 
 def cut(x):
     # 人工切詞
-    cuts = []
+    ret_cut = []
     for j in x:
-        cuts.append(j)
-    return cuts
+        ret_cut.append(j)
+    return ret_cut
 
 
 def cut_all(output, cuts):
@@ -181,17 +184,17 @@ def cut_all(output, cuts):
             start = output.find(i, start) + 1
     c = list(set(c))
     c.sort()
-    print("\n", c, "\n")
+    # print("\n", c, "\n")
     if len(c) != 0:
         sentence = []
         start = c[0]  # 初始位置
         end = 0
         print("[")
         for j in range(1, len(c)):
-            if c[j] - start <= z:
+            if c[j] - start <= TEXT_LIMIT:
                 end = c[j]
             else:
-                while output[start] != '。' and output[start] != '!' and output[start] != '?' and output[start] != ' '\
+                while output[start] != '。' and output[start] != '!' and output[start] != '?' and output[start] != ' ' \
                         and output[start] != '？' and output[start] != '！':
                     start -= 1
                 while output[end] != '。' and output[end] != '!' and output[end] != '?' and output[end] != ' ' and \
@@ -217,7 +220,7 @@ def cut_all(output, cuts):
 
                 start = c[j]
         print("]")
-        get_idf_sentence(cuts, idf, sentence)
+        # get_idf_sentence(cuts, idf, sentence)
         return sentence
 
 
@@ -225,7 +228,8 @@ def get_text(link, title):
     headers = {
         'Host': 'ptlogin2.qq.com',
         "User-Agent": UserAgent(verify_ssl=False).random,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,'
+                  'application/signed-exchange;v=b3;q=0.9',
         'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
         'Accept-Encoding': 'gzip, deflate, br',
         'Accept-Language': 'zh-CN,zh;q=0.9,en-CN;q=0.8,en;q=0.7',
@@ -242,7 +246,6 @@ def get_text(link, title):
         comments = soup.findAll(text=lambda func_text: isinstance(func_text, Comment))  # 去除網頁內的註解
         [comment.extract() for comment in comments]
 
-        save = []
         output = ''
         text = soup.find_all(text=True)
         blacklist = [
@@ -284,22 +287,19 @@ def get_text(link, title):
             if t.parent.name not in blacklist:
                 if len(t) > 4:
                     output += '{}'.format(t.strip())
-        # print("全部的text：\n", output)
         # insert_into_searchresult(link, title, output, x)  # 錄入search result資料表
-
-        ret = cut_all(output, x)
-        print(ret)
+        ret = cut_all(output, searchText)
         return ret
 
 
-def google_connected(x, y):
+def google_connected(keywords, number):
     params = {
         'api_key': CONFIG["GSR_API_KEY"],
-        'q': x,
+        'q': keywords,
         'gl': 'tw',
         'hl': 'zh-tw',
         'location': 'Taiwan',
-        'num': y,
+        'num': number,
         'google_domain': 'google.com.tw',
         'output': 'json',
         'lr': 'lang_zh-TW'
@@ -314,7 +314,7 @@ def google_connected(x, y):
         print("無相關資料！")  # 是否有搜尋到資料
     else:
         # iterate over 10 results found
-        for i, search_item in enumerate(search_items):
+        for counter, search_item in enumerate(search_items):
             # get the page title
             title = search_item.get("title")
             # page snippet
@@ -322,28 +322,39 @@ def google_connected(x, y):
             # extract the page url
             link = search_item.get("link")
             # print the results
-            print("=" * 10, f"Result #{i}", "=" * 10)
+            print("=" * 10, f"Result #{counter}", "=" * 10)
             print("Description:", snippet)
             print("URL:", link, "\n")
             ret = get_text(link, title)  # problem：google的網址可能進入pdf檔；一些網址需要登入才可以預覽內容，需要cookie；
+            SendToRabbitMQ({"sentence": ret, "idf_voc": cuts, "idf_dict": idf_dict, "idf_sum": idf_sum})
 
 
-x = sys.argv[1]
-x = x.replace(" ", "")
-insert_into_search(x)
-print("\n關鍵句直接切：\n")
-cuts = cut(x)
-for i in cut(x):
-    if i not in cuts:
-        cuts.append(i)
-print("\n", cuts)
+def SendToRabbitMQ(message: dict):
+    print(message)
+    message = json.dumps(message)
+    channel.basic_publish(
+        exchange='',
+        routing_key=CONFIG["RABBITMQ"]["QUEUE"],
+        body=message,
+        properties=pika.BasicProperties(delivery_mode=2)  # make message persistent
+    )
+
+
+# searchText = sys.argv[1]
+searchText = "群體免疫是否有效"
+searchText = searchText.replace(" ", "")
+insert_into_search(searchText)
+
+cuts = cut(searchText)  # 切出關鍵句
+print(cuts)
 idf = count_idf(cuts)
-sum_idf = 0
+idf_sum = 0
 for i in idf:
-    sum_idf += i
-y = 30
-z = 150
+    idf_sum += i
+idf_dict = {c: idf[counter] for counter, c in enumerate(cuts)}
+searchResultLimit = 30
+TEXT_LIMIT = 150
 t1 = time.time()
-google_connected(x, y)
+# google_connected(searchText, searchResultLimit)
 t2 = time.time()
 print('總共耗時：%s' % (t2 - t1))
