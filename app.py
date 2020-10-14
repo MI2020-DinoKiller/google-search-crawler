@@ -232,7 +232,7 @@ def get_text(link, title):
                   'application/signed-exchange;v=b3;q=0.9',
         'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
         'Accept-Encoding': 'gzip, deflate, br',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en-CN;q=0.8,en;q=0.7',
+        'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
         'Connection': 'keep-alive'
     }  # useragent反爬
     try:
@@ -307,26 +307,19 @@ def google_connected(keywords, number):
     # make the http GET request to Scale SERP
     api_result = requests.get('https://api.scaleserp.com/search', params)
     data = api_result.json()
-    # print(json.dumps(data))
-    # get the result items
     search_items = data.get("organic_results")
     if search_items is None:
         print("無相關資料！")  # 是否有搜尋到資料
     else:
-        # iterate over 10 results found
         for counter, search_item in enumerate(search_items):
-            # get the page title
             title = search_item.get("title")
-            # page snippet
             snippet = search_item.get("snippet")
-            # extract the page url
             link = search_item.get("link")
-            # print the results
             print("=" * 10, f"Result #{counter}", "=" * 10)
             print("Description:", snippet)
             print("URL:", link, "\n")
             ret = get_text(link, title)  # problem：google的網址可能進入pdf檔；一些網址需要登入才可以預覽內容，需要cookie；
-            SendToRabbitMQ({"sentence": ret, "idf_voc": cuts, "idf_dict": idf_dict, "idf_sum": idf_sum})
+            SendToRabbitMQ({"sentence": ret, "idf_words": cuts, "idf_dict": idf_dict, "idf_sum": idf_sum})
 
 
 def SendToRabbitMQ(message: dict):
@@ -340,13 +333,10 @@ def SendToRabbitMQ(message: dict):
     )
 
 
-# searchText = sys.argv[1]
-searchText = "群體免疫是否有效"
-searchText = searchText.replace(" ", "")
+searchText = sys.argv[1]
 insert_into_search(searchText)
 
 cuts = cut(searchText)  # 切出關鍵句
-print(cuts)
 idf = count_idf(cuts)
 idf_sum = 0
 for i in idf:
@@ -355,6 +345,14 @@ idf_dict = {c: idf[counter] for counter, c in enumerate(cuts)}
 searchResultLimit = 30
 TEXT_LIMIT = 150
 t1 = time.time()
-# google_connected(searchText, searchResultLimit)
+google_connected(searchText, searchResultLimit)
 t2 = time.time()
-print('總共耗時：%s' % (t2 - t1))
+print('總共耗時：%s'    % (t2 - t1))
+
+# url2 = ["http://www.bcc.com.tw/newsView.4059191",
+#         "https://www.hk01.com/%E5%8D%B3%E6%99%82%E5%9C%8B%E9%9A%9B/448819/%E6%96%B0%E5%86%A0%E8%82%BA%E7%82%8E-%E7%91%9E%E5%85%B8%E5%B0%88%E5%AE%B6%E6%94%AF%E6%8C%81%E8%8B%B1%E5%9C%8B-%E7%BE%A4%E9%AB%94%E5%85%8D%E7%96%AB-%E6%A6%82%E5%BF%B5",
+#         "https://www.commonhealth.com.tw/article/article.action?nid=81158",
+#         "http://www.healthnews.com.tw/news/article/45519"]
+# for url in url2:
+#     result_text = get_text(url, "")
+#     SendToRabbitMQ({"sentence": result_text, "idf_words": cuts, "idf_dict": idf_dict, "idf_sum": idf_sum})
