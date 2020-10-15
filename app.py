@@ -286,7 +286,40 @@ def get_text(link, title):
         for t in text:
             if t.parent.name not in blacklist:
                 if len(t) > 4:
-                    output += '{}'.format(t.strip())
+                    output += '{}'.format(t)
+        # 去除襍訊
+        # 頭部
+        d = 0
+        delete = ''
+        for j in range(50):
+            for i in range(len(output)):
+                if output[i] != '。' and output[i] != '!' and output[i] != '?' and output[i] != ' ' and \
+                        output[i] != '？' and output[i] != '！':
+                    delete += '{}'.format(output[i])
+                else:
+                    break
+            for w in x:
+                if delete.find(w) != -1:
+                    d = 1
+            if d == 0:
+                output = output[len(delete) + 1:]
+                delete = ''
+            else:
+                break
+
+        # 尾部
+        if len(output) != 0:
+            if output[-1] != '。' and output[-1] != '!' and output[-1] != '?' and output[-1] != '？' and \
+                    output[-1] != '！':
+                buttom = len(output)
+                for i in reversed(range(len(output))):
+                    if output[i] != '。':
+                        buttom = i
+                    else:
+                        break
+                output = output[:buttom]
+            print(output)
+
         # insert_into_searchresult(link, title, output, x)  # 錄入search result資料表
         ret = cut_all(output, searchText)
         return ret
