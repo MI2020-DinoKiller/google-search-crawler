@@ -238,7 +238,7 @@ def get_text(link, title):
     try:
         res = requests.get(link, headers)
     except Exception as e:
-        print(e)  # 輸出異常行為名稱
+        logging.error("%s", e)
     else:
         html_page = res.content
         soup = BeautifulSoup(html_page, 'html.parser')  # beautifulsoup抓取網頁源代碼
@@ -298,7 +298,7 @@ def get_text(link, title):
                     delete += '{}'.format(output[i])
                 else:
                     break
-            for w in x:
+            for w in searchText:
                 if delete.find(w) != -1:
                     d = 1
             if d == 0:
