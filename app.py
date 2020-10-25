@@ -10,7 +10,6 @@ import string
 import pika as pika
 import pymysql
 import requests
-import zhconv
 from serpwow.google_search_results import GoogleSearchResults
 from fake_useragent import UserAgent
 from bs4 import BeautifulSoup, Comment
@@ -36,7 +35,7 @@ channel.queue_declare(queue=CONFIG["RABBITMQ"]["QUEUE"], durable=True)
 logging.info('Connected RabbitMQ Success!')
 
 # 鏈接mysql
-logging.info('連接到mysql服務器...')
+logging.info('Connecting MySQL Server...')
 db = pymysql.connect(
     host=CONFIG["Database"]["host"],
     user=CONFIG["Database"]["user"],
@@ -44,7 +43,7 @@ db = pymysql.connect(
     db=CONFIG["Database"]["dbname"],
     charset=CONFIG["Database"]["charset"],
     cursorclass=pymysql.cursors.DictCursor)
-logging.info('連接上了!')
+logging.info('Connected MySQL Server Success!')
 cursor = db.cursor()
 
 serpwow = GoogleSearchResults(CONFIG["GSR_API_KEY"])
@@ -135,15 +134,15 @@ def count_idf(c):
     if len(c) != 0:
         total = 0
         num = []
-        for i in c:
-            n = idf_detected(i)
+        for counter in c:
+            n = idf_detected(counter)
             total += int(n)
             num.append(n)
-        idf = []
-        for i in range(len(num)):
-            idf.append(math.log(total / (int(num[i]) + 1)))
-            print(c[i], ":", idf[i])
-        return idf
+        re_idf = []
+        for counter in range(len(num)):
+            re_idf.append(math.log(total / (int(num[counter]) + 1)))
+            print(c[counter], ":", re_idf[counter])
+        return re_idf
 
 
 def sort(sentence, grade):
@@ -151,9 +150,12 @@ def sort(sentence, grade):
     for s in range(len(grade)):
         s_g.append([sentence[s], grade[s]])
     s_g = sorted(s_g, key=lambda sl: (sl[1]), reverse=True)
+    ret = []
     for counter in s_g:
-        if (counter[1] / idf_sum) >= 0.5:
+        if (counter[1] / idf_sum) >= 0.5 and len(counter[0]) < 500:
+            ret.append(counter[0])
             print(counter[0], ":", counter[1] / idf_sum, "\n")
+    return ret
 
 
 def get_idf_sentence(c, idf, sentence):
@@ -164,7 +166,8 @@ def get_idf_sentence(c, idf, sentence):
             if s.find(c[counter]) != -1:
                 g += idf[counter]
         grade.append(g)
-    sort(sentence, grade)
+    ret = sort(sentence, grade)
+    return ret
 
 
 def cut(x):
@@ -189,7 +192,6 @@ def cut_all(output, cuts):
         sentence = []
         start = c[0]  # 初始位置
         end = 0
-        print("[")
         for j in range(1, len(c)):
             if c[j] - start <= TEXT_LIMIT:
                 end = c[j]
@@ -216,27 +218,29 @@ def cut_all(output, cuts):
 
                 if result != "":
                     sentence.append(result)
-                    print("\"", result, "\",", sep='')
-
                 start = c[j]
-        print("]")
-        # get_idf_sentence(cuts, idf, sentence)
-        return sentence
+        sentences = get_idf_sentence(cuts, idf, sentence)
+        return sentences
 
 
 def get_text(link, title):
     headers = {
         'Host': 'ptlogin2.qq.com',
-        "User-Agent": UserAgent(verify_ssl=False).random,
+        "User-Agent": UserAgent(verify_ssl=False).random,  # useragent反爬
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,'
                   'application/signed-exchange;v=b3;q=0.9',
         'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
         'Accept-Encoding': 'gzip, deflate, br',
         'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
         'Connection': 'keep-alive'
-    }  # useragent反爬
+    }
     try:
-        res = requests.get(link, headers)
+        res = requests.Session().head(link, timeout=30, headers=headers)
+        content_type = res.headers["content-type"]
+        if content_type != "application/pdf":
+            res = requests.get(link, headers)
+        else:
+            return []
     except Exception as e:
         logging.error("%s", e)
     else:
@@ -318,7 +322,7 @@ def get_text(link, title):
                     else:
                         break
                 output = output[:buttom]
-            print(output)
+            # print(output)
 
         # insert_into_searchresult(link, title, output, x)  # 錄入search result資料表
         ret = cut_all(output, searchText)
@@ -352,7 +356,8 @@ def google_connected(keywords, number):
             print("Description:", snippet)
             print("URL:", link, "\n")
             ret = get_text(link, title)  # problem：google的網址可能進入pdf檔；一些網址需要登入才可以預覽內容，需要cookie；
-            SendToRabbitMQ({"sentence": ret, "idf_words": cuts, "idf_dict": idf_dict, "idf_sum": idf_sum})
+            # idf_words = set()
+            SendToRabbitMQ({"sentence": ret, "idf_words": cuts, "idf_dict": idf_dict, "idf_sum": idf_sum, "url": link})
 
 
 def SendToRabbitMQ(message: dict):
@@ -371,7 +376,7 @@ insert_into_search(searchText)
 
 cuts = cut(searchText)  # 切出關鍵句
 idf = count_idf(cuts)
-idf_sum = 0
+idf_sum = 0.0
 for i in idf:
     idf_sum += i
 idf_dict = {c: idf[counter] for counter, c in enumerate(cuts)}
@@ -380,7 +385,7 @@ TEXT_LIMIT = 150
 t1 = time.time()
 google_connected(searchText, searchResultLimit)
 t2 = time.time()
-print('總共耗時：%s'    % (t2 - t1))
+print('總共耗時：%s' % (t2 - t1))
 
 # url2 = ["http://www.bcc.com.tw/newsView.4059191",
 #         "https://www.hk01.com/%E5%8D%B3%E6%99%82%E5%9C%8B%E9%9A%9B/448819/%E6%96%B0%E5%86%A0%E8%82%BA%E7%82%8E-%E7%91%9E%E5%85%B8%E5%B0%88%E5%AE%B6%E6%94%AF%E6%8C%81%E8%8B%B1%E5%9C%8B-%E7%BE%A4%E9%AB%94%E5%85%8D%E7%96%AB-%E6%A6%82%E5%BF%B5",
@@ -388,4 +393,4 @@ print('總共耗時：%s'    % (t2 - t1))
 #         "http://www.healthnews.com.tw/news/article/45519"]
 # for url in url2:
 #     result_text = get_text(url, "")
-#     SendToRabbitMQ({"sentence": result_text, "idf_words": cuts, "idf_dict": idf_dict, "idf_sum": idf_sum})
+#     SendToRabbitMQ({"sentence": result_text, "idf_words": cuts, "idf_dict": idf_dict, "idf_sum": idf_sum, , "url": url})
