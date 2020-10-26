@@ -49,30 +49,28 @@ cursor = db.cursor()
 serpwow = GoogleSearchResults(CONFIG["GSR_API_KEY"])
 
 
-def insert_into_search(searchstring: str):
+def insert_into_search(search_string: str):
     sql = "SELECT `SearchId` FROM `search` WHERE `SearchString`=%s"
     # 需要先執行sql語句
-    if cursor.execute(sql, (searchstring)):
-        # 得到返回值jilu,jilu是一個元組
-        jilu = cursor.fetchone()
+    if cursor.execute(sql, (search_string)):
+        result = cursor.fetchone()
         # 通過下標取出值即可
-        print('已有相同搜尋,對應的id是：', jilu['SearchId'])
+        print('已有相同搜尋,對應的id是：', result['SearchId'])
     else:
         print('沒有對應的搜尋，新增中。。。。')
         insert_color = "INSERT INTO `search` (`SearchString`) VALUES (%s)"
-        cursor.execute(insert_color, (searchstring))
+        cursor.execute(insert_color, (search_string))
         db.commit()
         print("新增完成！")
 
 
-def find_searchId(searchstring: str):
+def find_searchId(search_string: str):
     sql = "SELECT `SearchId` FROM `search` WHERE `SearchString`=%s"
     # 需要先執行sql語句
-    if cursor.execute(sql, (searchstring)):
-        # 得到返回值jilu,jilu是一個元組
-        jilu = cursor.fetchone()
+    if cursor.execute(sql, (search_string)):
+        result = cursor.fetchone()
         # 通過下標取出值即可
-        ret = jilu['SearchId']
+        ret = result['SearchId']
         return ret
 
 
@@ -99,11 +97,11 @@ def insert_into_searchresult(Link: str, Title: str, Content: str, searchstring: 
 
 
 # 使用Google的搜尋結果數量來當idf
-def find_idf(string: str):
+def find_idf(search_string: str):
     my_params = {
         "cx": CONFIG["google_search_api_cx"],
         "key": CONFIG["google_search_api_key"],
-        "q": string
+        "q": search_string
     }
     data = requests.get(CONFIG["google_search_api_url"], my_params).json()
     result = data.get("searchInformation")
@@ -111,19 +109,18 @@ def find_idf(string: str):
     return result_number
 
 
-def idf_detected(searchstring):
+def idf_detected(search_string: str):
     sql = "SELECT `idfnumber` FROM `idf` WHERE `idfstring`=%s"
     # 需要先執行sql語句
-    if cursor.execute(sql, (searchstring)):
-        # 得到返回值jilu,jilu是一個元組
-        jilu = cursor.fetchone()
+    if cursor.execute(sql, (search_string)):
+        result = cursor.fetchone()
         # 通過下標取出值即可
-        return jilu['idfnumber']
+        return result['idfnumber']
     else:
         print('沒有對應的搜尋，新增中。。。。')
-        number = find_idf(searchstring)
+        number = find_idf(search_string)
         insert_color = "INSERT INTO `idf`(`idfstring`, `idfnumber`) VALUES (%s, %s)"
-        dese = (searchstring, number)
+        dese = (search_string, number)
         cursor.execute(insert_color, dese)
         db.commit()
         print("新增完成！")
@@ -152,7 +149,7 @@ def sort(sentence, grade):
     s_g = sorted(s_g, key=lambda sl: (sl[1]), reverse=True)
     ret = []
     for counter in s_g:
-        if ((counter[1] / idf_sum) >= 0.5 or counter[1]>=first_six) and len(counter[0]) < 500:
+        if ((counter[1] / idf_sum) >= 0.5 or counter[1] >= first_six) and len(counter[0]) < 500:
             ret.append(counter[0])
             print(counter[0], ":", counter[1] / idf_sum, "\n")
     return ret
@@ -182,7 +179,7 @@ def cut_all(output, cuts):
     c = []  # 儲存關鍵詞位置
     for i in cuts:
         start = 0
-        while (output.find(i, start) != -1):
+        while output.find(i, start) != -1:
             c.append(output.find(i, start))
             start = output.find(i, start) + 1
     c = list(set(c))
@@ -296,10 +293,11 @@ def get_text(link, title):
         d = 0
         delete = ''
         for j in range(50):
-            for i in range(len(output)):
-                if output[i] != '。' and output[i] != '!' and output[i] != '?' and output[i] != ' ' and \
-                        output[i] != '？' and output[i] != '！':
-                    delete += '{}'.format(output[i])
+            for counter in range(len(output)):
+                if output[counter] != '。' and output[counter] != '!' and output[counter] != '?' and output[
+                    counter] != ' ' and \
+                        output[counter] != '？' and output[counter] != '！':
+                    delete += '{}'.format(output[counter])
                 else:
                     break
             for w in searchText:
@@ -316,9 +314,9 @@ def get_text(link, title):
             if output[-1] != '。' and output[-1] != '!' and output[-1] != '?' and output[-1] != '？' and \
                     output[-1] != '！':
                 buttom = len(output)
-                for i in reversed(range(len(output))):
-                    if output[i] != '。':
-                        buttom = i
+                for counter in reversed(range(len(output))):
+                    if output[counter] != '。':
+                        buttom = counter
                     else:
                         break
                 output = output[:buttom]
@@ -379,15 +377,15 @@ idf = count_idf(cuts)
 idf_sum = 0.0
 for i in idf:
     idf_sum += i
-#取前六個idf的總和
-cuts_idf=[]
+# 取前六個idf的總和
+cuts_idf = []
 for i in range(len(idf)):
-    cuts_idf.append([cuts[i],idf[i]])
-cuts_idf= sorted(cuts_idf,key=lambda sl: (sl[1]),reverse=True)
-first_six=0
-if len(cuts)>=6:
-    for i in range(6):
-        first_six+=cuts_idf[1][i]
+    cuts_idf.append([cuts[i], idf[i]])
+cuts_idf = sorted(cuts_idf, key=lambda sl: (sl[1]), reverse=True)
+first_six = 0
+if len(cuts) >= 6:
+    for i in cuts_idf[:6]:
+        first_six += i[1]
 
 print(first_six)
 idf_dict = {c: idf[counter] for counter, c in enumerate(cuts)}

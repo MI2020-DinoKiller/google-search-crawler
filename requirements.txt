@@ -9,4 +9,3 @@ PyMySQL==0.10.1
 requests==2.24.0
 soupsieve==2.0.1
 urllib3==1.25.10
-zhconv==1.4.1
