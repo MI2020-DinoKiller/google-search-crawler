@@ -152,7 +152,7 @@ def sort(sentence, grade):
     s_g = sorted(s_g, key=lambda sl: (sl[1]), reverse=True)
     ret = []
     for counter in s_g:
-        if (counter[1] / idf_sum) >= 0.5 and len(counter[0]) < 500:
+        if ((counter[1] / idf_sum) >= 0.5 or counter[1]>=first_six) and len(counter[0]) < 500:
             ret.append(counter[0])
             print(counter[0], ":", counter[1] / idf_sum, "\n")
     return ret
@@ -379,6 +379,17 @@ idf = count_idf(cuts)
 idf_sum = 0.0
 for i in idf:
     idf_sum += i
+#取前六個idf的總和
+cuts_idf=[]
+for i in range(len(idf)):
+    cuts_idf.append([cuts[i],idf[i]])
+cuts_idf= sorted(cuts_idf,key=lambda sl: (sl[1]),reverse=True)
+first_six=0
+if len(cuts)>=6:
+    for i in range(6):
+        first_six+=cuts_idf[1][i]
+
+print(first_six)
 idf_dict = {c: idf[counter] for counter, c in enumerate(cuts)}
 searchResultLimit = 30
 TEXT_LIMIT = 150
