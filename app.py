@@ -74,6 +74,24 @@ def find_searchId(search_string: str):
         return ret
 
 
+def find_search_result_Id(link: str):
+    sql = "SELECT `SearchResultId` FROM `searchresult` WHERE `link`=%s"
+    # 需要先執行sql語句
+    if cursor.execute(sql, (link)):
+        result = cursor.fetchone()
+        # 通過下標取出值即可
+        ret = result['SearchResultId']
+        return ret
+
+
+def insert_into_sentence(sentence: str, link: str):
+    seach_result_Id = find_search_result_Id(link)
+    insert_color = "INSERT INTO sentence(sentences,search_result_id) VALUES(%s,%s)"
+    dese = (sentence, seach_result_Id)
+    cursor.execute(insert_color, dese)
+    db.commit()
+
+
 def find_white_id(link):
     sql = "SELECT * FROM `whitelist`"
     # 需要先執行sql語句
@@ -146,7 +164,7 @@ def sort(sentence, grade):
     s_g = []
     for s in range(len(grade)):
         s_g.append([sentence[s], grade[s]])
-    s_g = sorted(s_g, key=lambda sl: (sl[1]), reverse=True)
+    #s_g = sorted(s_g, key=lambda sl: (sl[1]), reverse=True)
     ret = []
     for counter in s_g:
         if ((counter[1] / idf_sum) >= 0.5 or counter[1] >= first_six) and len(counter[0]) < 500:
@@ -209,7 +227,7 @@ def cut_all(output, cuts):
                 if len(sentence) > 0:
                     if sentence[-1].find(last_str) != -1:
                         start += len(last_str) + 1
-                result = output[start + 1:end].strip()
+                result = output[start + 1:end + 1].strip()
                 result = result.translate(str.maketrans('', '', string.whitespace))
                 result = remove_control_characters(result)
 
@@ -287,7 +305,7 @@ def get_text(link, title):
         for t in text:
             if t.parent.name not in blacklist:
                 if len(t) > 4:
-                    output += '{}'.format(t)
+                    output += '{}\n'.format(t)
         # 去除襍訊
         # 頭部
         d = 0
@@ -321,9 +339,14 @@ def get_text(link, title):
                         break
                 output = output[:buttom]
             # print(output)
+            output = output.translate(str.maketrans('', '', string.whitespace))
+            output = remove_control_characters(output)
 
-        # insert_into_searchresult(link, title, output, x)  # 錄入search result資料表
+        insert_into_searchresult(link, title, output, searchText)  # 錄入search result資料表
         ret = cut_all(output, searchText)
+        if ret is not None:
+            for counter in ret:
+                insert_into_sentence(counter, link)
         return ret
 
 
