@@ -266,6 +266,7 @@ def get_text(link, title):
         [comment.extract() for comment in comments]
 
         output = ''
+
         text = soup.find_all(text=True)
         blacklist = [
             'a',
@@ -394,6 +395,9 @@ def SendToRabbitMQ(message: dict):
 
 
 searchText = sys.argv[1]
+searchText=re.sub(r'[^\w\s]','',searchText)
+print(searchText)
+
 insert_into_search(searchText)
 
 cuts = cut(searchText)  # 切出關鍵句
