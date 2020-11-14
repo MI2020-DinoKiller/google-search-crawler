@@ -378,7 +378,8 @@ def google_connected(keywords, number):
             print("URL:", link, "\n")
             ret = get_text(link, title)  # problem：google的網址可能進入pdf檔；一些網址需要登入才可以預覽內容，需要cookie；
             # idf_words = set()
-            SendToRabbitMQ({"sentence": ret, "idf_words": cuts, "idf_dict": idf_dict, "idf_sum": idf_sum, "url": link})
+            SendToRabbitMQ({"query_string": searchText, "sentence": ret, "idf_words": cuts, "idf_dict": idf_dict,
+                            "idf_sum": idf_sum, "url": link})
 
 
 def SendToRabbitMQ(message: dict):
@@ -425,4 +426,4 @@ print('總共耗時：%s' % (t2 - t1))
 #         "http://www.healthnews.com.tw/news/article/45519"]
 # for url in url2:
 #     result_text = get_text(url, "")
-#     SendToRabbitMQ({"sentence": result_text, "idf_words": cuts, "idf_dict": idf_dict, "idf_sum": idf_sum, , "url": url})
+#     SendToRabbitMQ({"query_string": searchText, "sentence": result_text, "idf_words": cuts, "idf_dict": idf_dict, "idf_sum": idf_sum, "url": url})
