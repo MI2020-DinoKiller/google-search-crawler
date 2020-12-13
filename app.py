@@ -31,7 +31,7 @@ connection = pika.BlockingConnection(pika.ConnectionParameters(
     host=CONFIG["RABBITMQ"]["HOST"], heartbeat=0, ))
 channel = connection.channel()
 channel.queue_declare(queue=CONFIG["RABBITMQ"]["QUEUE"], durable=True)
-channel.queue_declare(queue=CONFIG["RABBITMQ"]["SEARCH_QUEUE"], durable=True)
+channel.queue_declare(queue=CONFIG["RABBITMQ"]["QUEUE_SEARCH"], durable=True)
 logging.info('Connected RabbitMQ Success!')
 
 # 鏈接mysql
