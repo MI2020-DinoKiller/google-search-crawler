@@ -1,6 +1,6 @@
 {
   "Database": {
-    "charset": "utf8",
+    "charset": "utf8mb4",
     "dbname": "DATABASE_DBNAME",
     "host": "DATABASE_HOST",
     "passwd": "DATABASE_PASSWORD",
@@ -13,5 +13,6 @@
   "RABBITMQ": {
     "HOST": "RabbitMQ_HOST",
     "QUEUE": "RabbitMQ_QUEUE_NAME"
+    "QUEUE_SEARCH": "RabbitMQ_ANOTHER_QUEUE_NAME"
   }
 }

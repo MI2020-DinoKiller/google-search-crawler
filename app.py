@@ -3,7 +3,6 @@ import os
 import re
 import json
 import logging
-import sys
 import time
 import string
 
@@ -29,9 +28,10 @@ logging.info("分析完畢 config.json")
 
 logging.info('Connecting RabbitMQ......')
 connection = pika.BlockingConnection(pika.ConnectionParameters(
-    host=CONFIG["RABBITMQ"]["HOST"]))
+    host=CONFIG["RABBITMQ"]["HOST"], heartbeat=0, ))
 channel = connection.channel()
 channel.queue_declare(queue=CONFIG["RABBITMQ"]["QUEUE"], durable=True)
+channel.queue_declare(queue=CONFIG["RABBITMQ"]["SEARCH_QUEUE"], durable=True)
 logging.info('Connected RabbitMQ Success!')
 
 # 鏈接mysql
@@ -47,21 +47,28 @@ logging.info('Connected MySQL Server Success!')
 cursor = db.cursor()
 
 serpwow = GoogleSearchResults(CONFIG["GSR_API_KEY"])
+searchResultLimit = 50
+TEXT_LIMIT = 150
 
 
 def insert_into_search(search_string: str):
-    sql = "SELECT `SearchId` FROM `search` WHERE `SearchString`=%s"
+    sql = "SELECT `SearchId` FROM `search` WHERE `SearchString`=%s ORDER BY `SearchID` DESC"
     # 需要先執行sql語句
     if cursor.execute(sql, (search_string)):
         result = cursor.fetchone()
         # 通過下標取出值即可
         print('已有相同搜尋,對應的id是：', result['SearchId'])
+        return result['SearchId']
     else:
         print('沒有對應的搜尋，新增中。。。。')
         insert_color = "INSERT INTO `search` (`SearchString`) VALUES (%s)"
         cursor.execute(insert_color, (search_string))
         db.commit()
         print("新增完成！")
+        cursor.execute(sql, (search_string))
+        result = cursor.fetchone()
+        print('對應的id是：', result['SearchId'])
+        return result['SearchId']
 
 
 def find_searchId(search_string: str):
@@ -105,11 +112,11 @@ def find_white_id(link):
     return Id
 
 
-def insert_into_searchresult(Link: str, Title: str, Content: str, searchstring: str):
-    Id = find_searchId(searchstring)
+def insert_into_searchresult(link: str, title: str, content: str, search_string: str):
+    Id = find_searchId(search_string)
     # whitelistid=find_white_id(Link)
     insert_color = "INSERT INTO searchresult(Link,Title,Content,SearchId) VALUES(%s,%s,%s,%s)"
-    dese = (Link, Title, Content, Id)
+    dese = (link, title, content, Id)
     cursor.execute(insert_color, dese)
     db.commit()
 
@@ -147,7 +154,7 @@ def idf_detected(search_string: str):
 
 def count_idf(c):
     if len(c) != 0:
-        total = 0
+        total = 14550000000
         num = []
         for counter in c:
             n = idf_detected(counter)
@@ -160,11 +167,11 @@ def count_idf(c):
         return re_idf
 
 
-def sort(sentence, grade):
+def sort(sentence, grade, idf_sum, first_six):
     s_g = []
     for s in range(len(grade)):
         s_g.append([sentence[s], grade[s]])
-    #s_g = sorted(s_g, key=lambda sl: (sl[1]), reverse=True)
+    # s_g = sorted(s_g, key=lambda sl: (sl[1]), reverse=True)
     ret = []
     for counter in s_g:
         if ((counter[1] / idf_sum) >= 0.5 or counter[1] >= first_six) and len(counter[0]) < 500:
@@ -173,7 +180,7 @@ def sort(sentence, grade):
     return ret
 
 
-def get_idf_sentence(c, idf, sentence):
+def get_idf_sentence(c, idf, sentence, idf_sum, first_six):
     grade = []
     for s in sentence:
         g = 0
@@ -181,7 +188,7 @@ def get_idf_sentence(c, idf, sentence):
             if s.find(c[counter]) != -1:
                 g += idf[counter]
         grade.append(g)
-    ret = sort(sentence, grade)
+    ret = sort(sentence, grade, idf_sum, first_six)
     return ret
 
 
@@ -193,7 +200,7 @@ def cut(x):
     return ret_cut
 
 
-def cut_all(output, cuts):
+def cut_all(output, cuts, idf_score, idf_sum, first_six):
     c = []  # 儲存關鍵詞位置
     for i in cuts:
         start = 0
@@ -234,11 +241,11 @@ def cut_all(output, cuts):
                 if result != "":
                     sentence.append(result)
                 start = c[j]
-        sentences = get_idf_sentence(cuts, idf, sentence)
+        sentences = get_idf_sentence(cuts, idf_score, sentence, idf_sum, first_six)
         return sentences
 
 
-def get_text(link, title):
+def get_text(link, search_text, idf_score, idf_sum, first_six):
     headers = {
         'Host': 'ptlogin2.qq.com',
         "User-Agent": UserAgent(verify_ssl=False).random,  # useragent反爬
@@ -250,14 +257,15 @@ def get_text(link, title):
         'Connection': 'keep-alive'
     }
     try:
-        res = requests.Session().head(link, timeout=30, headers=headers)
+        res = requests.Session().head(link, timeout=(10, 10), headers=headers)
         content_type = res.headers["content-type"]
         if content_type != "application/pdf":
-            res = requests.get(link, headers)
+            res = requests.get(link, headers, timeout=(10, 10))
         else:
-            return []
+            raise AttributeError("Content-Type is application/pdf.")
     except Exception as e:
         logging.error("%s", e)
+        return None, None
     else:
         html_page = res.content
         soup = BeautifulSoup(html_page, 'html.parser')  # beautifulsoup抓取網頁源代碼
@@ -319,7 +327,7 @@ def get_text(link, title):
                     delete += '{}'.format(output[counter])
                 else:
                     break
-            for w in searchText:
+            for w in search_text:
                 if delete.find(w) != -1:
                     d = 1
             if d == 0:
@@ -343,15 +351,15 @@ def get_text(link, title):
             output = output.translate(str.maketrans('', '', string.whitespace))
             output = remove_control_characters(output)
 
-        insert_into_searchresult(link, title, output, searchText)  # 錄入search result資料表
-        ret = cut_all(output, searchText)
-        if ret is not None:
-            for counter in ret:
-                insert_into_sentence(counter, link)
-        return ret
+        # insert_into_searchresult(link, title, output, searchText)  # 錄入search result資料表
+        ret = cut_all(output, search_text, idf_score, idf_sum, first_six)
+        # if ret is not None:
+        #     for counter in ret:
+        #         insert_into_sentence(counter, link)
+        return ret, output
 
 
-def google_connected(keywords, number):
+def google_connected(keywords, number, idf_words, idf_dict, idf_sum, search_id, idf_score, first_six):
     params = {
         'api_key': CONFIG["GSR_API_KEY"],
         'q': keywords,
@@ -377,10 +385,11 @@ def google_connected(keywords, number):
             print("=" * 10, f"Result #{counter}", "=" * 10)
             print("Description:", snippet)
             print("URL:", link, "\n")
-            ret = get_text(link, title)  # problem：google的網址可能進入pdf檔；一些網址需要登入才可以預覽內容，需要cookie；
+            ret, content = get_text(link, keywords, idf_score, idf_sum, first_six)  # problem：google的網址可能進入pdf檔；一些網址需要登入才可以預覽內容，需要cookie；
             # idf_words = set()
-            SendToRabbitMQ({"query_string": searchText, "sentence": ret, "idf_words": cuts, "idf_dict": idf_dict,
-                            "idf_sum": idf_sum, "url": link})
+            SendToRabbitMQ({"query_string": keywords, "sentence": ret, "idf_words": idf_words,
+                            "idf_dict": idf_dict, "idf_sum": idf_sum, "url": link,
+                            "search_id": search_id, "title": title, "content": content})
 
 
 def SendToRabbitMQ(message: dict):
@@ -394,40 +403,44 @@ def SendToRabbitMQ(message: dict):
     )
 
 
-searchText = sys.argv[1]
-searchText=re.sub(r'[^\w\s]','',searchText)
-print(searchText)
+def callback(ch, method, properties, body):
+    body = body.decode("utf-8")
+    obj = json.loads(body)
+    search_text = obj["searchText"]
+    search_text = re.sub(r'[^\w\s]', '', search_text)
+    print(search_text)
 
-insert_into_search(searchText)
+    search_id = insert_into_search(search_text)
 
-cuts = cut(searchText)  # 切出關鍵句
-idf = count_idf(cuts)
-idf_sum = 0.0
-for i in idf:
-    idf_sum += i
-# 取前六個idf的總和
-cuts_idf = []
-for i in range(len(idf)):
-    cuts_idf.append([cuts[i], idf[i]])
-cuts_idf = sorted(cuts_idf, key=lambda sl: (sl[1]), reverse=True)
-first_six = 0
-if len(cuts) >= 6:
-    for i in cuts_idf[:6]:
-        first_six += i[1]
+    idf_words = cut(search_text)  # 切出關鍵句
+    idf_score = count_idf(idf_words)
+    idf_sum = 0.0
+    for i in idf_score:
+        idf_sum += i
+    # 取前六個idf的總和
+    cuts_idf = []
+    for i in range(len(idf_score)):
+        cuts_idf.append([idf_words[i], idf_score[i]])
+    cuts_idf = sorted(cuts_idf, key=lambda sl: (sl[1]), reverse=True)
+    first_six = 0
+    if len(idf_words) >= 6:
+        for i in cuts_idf[:6]:
+            first_six += i[1]
+    print(first_six)
+    idf_dict = {c: idf_score[counter] for counter, c in enumerate(idf_words)}
+    t1 = time.time()
+    google_connected(search_text, searchResultLimit, idf_words, idf_dict, idf_sum, search_id, idf_score, first_six)
+    t2 = time.time()
+    print('總共耗時：%s' % (t2 - t1))
+    print(idf_words)
+    print(idf_dict)
+    print(idf_sum)
+    ch.basic_ack(delivery_tag=method.delivery_tag)
 
-print(first_six)
-idf_dict = {c: idf[counter] for counter, c in enumerate(cuts)}
-searchResultLimit = 30
-TEXT_LIMIT = 150
-t1 = time.time()
-google_connected(searchText, searchResultLimit)
-t2 = time.time()
-print('總共耗時：%s' % (t2 - t1))
 
-# url2 = ["http://www.bcc.com.tw/newsView.4059191",
-#         "https://www.hk01.com/%E5%8D%B3%E6%99%82%E5%9C%8B%E9%9A%9B/448819/%E6%96%B0%E5%86%A0%E8%82%BA%E7%82%8E-%E7%91%9E%E5%85%B8%E5%B0%88%E5%AE%B6%E6%94%AF%E6%8C%81%E8%8B%B1%E5%9C%8B-%E7%BE%A4%E9%AB%94%E5%85%8D%E7%96%AB-%E6%A6%82%E5%BF%B5",
-#         "https://www.commonhealth.com.tw/article/article.action?nid=81158",
-#         "http://www.healthnews.com.tw/news/article/45519"]
-# for url in url2:
-#     result_text = get_text(url, "")
-#     SendToRabbitMQ({"query_string": searchText, "sentence": result_text, "idf_words": cuts, "idf_dict": idf_dict, "idf_sum": idf_sum, "url": url})
+channel.basic_qos(prefetch_count=1)
+channel.basic_consume(CONFIG["RABBITMQ"]["QUEUE_SEARCH"], callback)
+channel.start_consuming()
+# SendToRabbitMQ({"query_string": searchText, "sentence": ["原發性痛經在青春期多見，常在初潮後1~2年內發病；疼痛多自月經來潮後開始，最早出現在經前12小時，以行經第1日疼痛劇烈，持續2~3日後緩解，疼痛常呈痙攣性。關於「痛經」想必很多姐妹都深受其害，知道喝紅糖薑茶止痛。如果長期出現痛經，而且疼痛明顯，並伴有噁心、嘔吐、頭暈或乏力，甚至影響了正常生活，就應該及時就醫。"],
+#                 "idf_words": cuts, "idf_dict": idf_dict,
+#                 "idf_sum": idf_sum, "url": "", "search_id": 7, "title": "title"})
