@@ -52,7 +52,7 @@ TEXT_LIMIT = 150
 
 
 def insert_into_search(search_string: str):
-    sql = "SELECT `SearchId` FROM `search` WHERE `SearchString`=%s ORDER BY `SearchID` DESC"
+    sql = "SELECT `SearchId` FROM `search` WHERE `SearchString`=%s ORDER BY `SearchId` DESC"
     # 需要先執行sql語句
     if cursor.execute(sql, (search_string)):
         result = cursor.fetchone()
@@ -72,7 +72,7 @@ def insert_into_search(search_string: str):
 
 
 def find_searchId(search_string: str):
-    sql = "SELECT `SearchId` FROM `search` WHERE `SearchString`=%s"
+    sql = "SELECT `SearchId` FROM `search` WHERE `SearchString`=%s ORDER BY `SearchId` DESC"
     # 需要先執行sql語句
     if cursor.execute(sql, (search_string)):
         result = cursor.fetchone()
