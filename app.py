@@ -410,8 +410,8 @@ def callback(ch, method, properties, body):
     search_text = re.sub(r'[^\w\s]', '', search_text)
     print(search_text)
 
-    search_id = insert_into_search(search_text)
-
+    # search_id = insert_into_search(search_text)
+    search_id = int(obj["id"])
     idf_words = cut(search_text)  # 切出關鍵句
     idf_score = count_idf(idf_words)
     idf_sum = 0.0
