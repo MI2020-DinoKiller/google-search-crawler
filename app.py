@@ -378,18 +378,26 @@ def google_connected(keywords, number, idf_words, idf_dict, idf_sum, search_id, 
     if search_items is None:
         print("無相關資料！")  # 是否有搜尋到資料
     else:
+        fin = len(search_items)
+        fin -= 1
+        while search_items[fin].get("link")[-3:] in {'pdf', 'xls'}:
+            fin -= 1
         for counter, search_item in enumerate(search_items):
             title = search_item.get("title")
             snippet = search_item.get("snippet")
             link = search_item.get("link")
-            print("=" * 10, f"Result #{counter}", "=" * 10)
-            print("Description:", snippet)
-            print("URL:", link, "\n")
-            ret, content = get_text(link, keywords, idf_score, idf_sum, first_six)  # problem：google的網址可能進入pdf檔；一些網址需要登入才可以預覽內容，需要cookie；
-            # idf_words = set()
-            SendToRabbitMQ({"query_string": keywords, "sentence": ret, "idf_words": idf_words,
-                            "idf_dict": idf_dict, "idf_sum": idf_sum, "url": link,
-                            "search_id": search_id, "title": title, "content": content})
+            if link[-3:] not in {'pdf', 'xls'}:
+                print("=" * 10, f"Result #{counter}", "=" * 10)
+                print("Description:", snippet)
+                print("URL:", link, "\n")
+                ret, content = get_text(link, keywords, idf_score, idf_sum,
+                                        first_six)  # problem：google的網址可能進入pdf檔；一些網址需要登入才可以預覽內容，需要cookie；
+                # idf_words = set()
+                # if ret is not None and ret != []:
+                SendToRabbitMQ({"query_string": keywords, "sentence": ret, "idf_words": idf_words,
+                                "idf_dict": idf_dict, "idf_sum": idf_sum, "url": link,
+                                "search_id": search_id, "title": title, "content": content,
+                                "is_finished": fin == counter})
 
 
 def SendToRabbitMQ(message: dict):
