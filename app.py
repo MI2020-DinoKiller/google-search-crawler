@@ -1,18 +1,18 @@
+import json
+import logging
 import math
 import os
 import re
-import json
-import logging
-import time
 import string
+import time
+import unicodedata
 
 import pika as pika
 import pymysql
 import requests
-from serpwow.google_search_results import GoogleSearchResults
-from fake_useragent import UserAgent
 from bs4 import BeautifulSoup, Comment
-import unicodedata
+from fake_useragent import UserAgent
+from serpwow.google_search_results import GoogleSearchResults
 
 
 def remove_control_characters(s):
