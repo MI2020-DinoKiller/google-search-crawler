@@ -1,0 +1,14 @@
+[Unit]
+Description=MI 2020 Topic Google Search Crawler Service
+After=network.target rabbitmq-server.service mysqld.service
+Requires=rabbitmq-server.service mysqld.service
+
+[Service]
+Type=simple
+WorkingDirectory=[DIRECTORY]
+# User=root
+# Group=root
+ExecStart=/usr/bin/python3 [DIRECTORY]/app.py
+
+[Install]
+WantedBy=multi-user.target
