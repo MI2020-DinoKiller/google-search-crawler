@@ -9,6 +9,7 @@ WorkingDirectory=[DIRECTORY]
 # User=root
 # Group=root
 ExecStart=/usr/bin/python3 [DIRECTORY]/app.py
+Restart=always
 
 [Install]
 WantedBy=multi-user.target
